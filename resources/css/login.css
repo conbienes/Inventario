@@ -1,0 +1,156 @@
+/* Estilos base */
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f5f5f5;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    color: #333;
+}
+
+/* Contenedor principal */
+.login-container {
+    width: 100%;
+    max-width: 400px;
+    padding: 20px;
+}
+
+/* Tarjeta de login */
+.login-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    transition: transform 0.3s ease;
+}
+
+.login-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Encabezado */
+.login-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.login-logo {
+    height: 80px;
+    margin-bottom: 15px;
+}
+
+.login-title {
+    font-size: 1.5rem;
+    color: #005484;
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Grupos de formulario */
+.form-group {
+    position: relative;
+    margin-bottom: 25px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 10px 0;
+    font-size: 16px;
+    border: none;
+    border-bottom: 1px solid #ccc;
+    outline: none;
+    background: transparent;
+}
+
+.form-label {
+    position: absolute;
+    top: 10px;
+    left: 0;
+    color: #999;
+    font-size: 16px;
+    pointer-events: none;
+    transition: 0.3s;
+}
+
+.form-input:focus ~ .form-label,
+.form-input:valid ~ .form-label {
+    top: -15px;
+    font-size: 12px;
+    color: #005484;
+}
+
+.form-bar {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+
+.form-bar:before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: #005484;
+    transition: 0.4s;
+}
+
+.form-input:focus ~ .form-bar:before {
+    width: 100%;
+}
+
+/* Mensajes de error */
+.error-message {
+    background-color: #ffebee;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.error-text {
+    color: #d32f2f;
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+/* Botón de submit */
+.submit-button {
+    width: 100%;
+    padding: 12px;
+    background: #005484;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.3s;
+}
+
+.submit-button:hover {
+    background: #003d66;
+}
+
+.button-text {
+    display: inline-block;
+    position: relative;
+    transition: 0.3s;
+}
+
+.submit-button:hover .button-text {
+    transform: translateX(5px);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .login-card {
+        padding: 20px;
+    }
+
+    .login-title {
+        font-size: 1.3rem;
+    }
+}
