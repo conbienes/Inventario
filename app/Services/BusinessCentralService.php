@@ -17,10 +17,10 @@ class BusinessCentralService
     public function __construct()
     {
         $this->http = new Client(['timeout' => 45]);
-        $this->tenantId = env('AZURE_TENANT_ID');
-        $this->clientId = env('AZURE_CLIENT_ID');
-        $this->clientSecret = env('AZURE_CLIENT_SECRET');
-        $this->environment = env('BC_ENVIRONMENT', 'Production');
+        $this->tenantId = config('services.azure.tenant_id');
+        $this->clientId = config('services.azure.client_id');
+        $this->clientSecret = config('services.azure.client_secret');
+        $this->environment = config('services.bc.environment');
     }
 
     public function getAccessToken(): string

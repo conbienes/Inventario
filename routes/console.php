@@ -10,6 +10,31 @@ use App\Models\BonoRegalo\FacturaBonoR;
 use App\Mail\FacturaBonoMail;
 
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\DB;
+
+// Procesa la cola (correos de recibos, envíos a BC) cada minuto.
+// Requiere una tarea de Windows que ejecute "php artisan schedule:run" cada minuto.
+Schedule::command('queue:work --stop-when-empty --tries=3 --backoff=60 --max-time=55')
+    ->everyMinute()
+    ->withoutOverlapping(10);
+
+/**
+ * IDs de mail_outbox que ya tienen un job pendiente en la cola,
+ * para no encolarlos de nuevo (evita trabajos duplicados).
+ */
+function outboxIdsEnCola(): array
+{
+    return DB::table('jobs')
+        ->where('payload', 'like', '%FacturaBonoMail%')
+        ->pluck('payload')
+        ->map(function ($p) {
+            $cmd = json_decode($p, true)['data']['command'] ?? '';
+            return preg_match('/outboxId";i:(\d+)/', $cmd, $m) ? (int) $m[1] : null;
+        })
+        ->filter()
+        ->flip()
+        ->all();
+}
 
 // Enviar pendientes a las 5:00 PM y 11:00 PM (hora de Colombia)
 Schedule::command('outbox:send-queued')
@@ -35,10 +60,17 @@ Artisan::command('outbox:send-queued {--chunk=100}', function () {
 
     $this->info('Encolando correos en estado "queued"...');
 
+    $enCola = outboxIdsEnCola();
+
     MailOutbox::where('status', 'queued')
         ->orderBy('id')
-        ->chunkById($chunk, function ($rows) {
+        ->chunkById($chunk, function ($rows) use ($enCola) {
             foreach ($rows as $out) {
+                // Ya tiene un job pendiente: no duplicarlo
+                if (isset($enCola[$out->id])) {
+                    continue;
+                }
+
                 // Reconstruir datos
                 $cliente = $out->cliente_id ? ClienteBonoR::find($out->cliente_id) : null;
                 $factura = $out->factura_id ? FacturaBonoR::find($out->factura_id) : null;

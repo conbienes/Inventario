@@ -1047,8 +1047,9 @@
                     resErr.textContent = errors;
                     resMiss.textContent = 0;
 
-                    resSummary.textContent =
-                        `Clientes creados/actualizados: ${ok} · Errores: ${errors} · Lote procesado: ${processed}`;
+                    resSummary.textContent = json?.mode === 'encolado'
+                        ? `${Number(json?.queued || 0)} clientes en cola para sincronizar con BC. Revisa en unos minutos.`
+                        : `Clientes creados/actualizados: ${ok} · Errores: ${errors} · Lote procesado: ${processed}`;
 
                     if (!resp.ok) {
                         console.error('HTTP', resp.status, json);
@@ -1205,12 +1206,23 @@
                 resMiss.textContent = missing;
 
                 const totalValor = results.reduce((acc, r) => acc + (Number(r?.valor_total) || 0), 0);
+                const skipped = (json?.skipped_ids || []).length;
+                if (json?.mode === 'encolado') {
+                    resSummary.textContent = `${Number(json?.queued || 0)} facturas en cola para enviar a BC. Recarga en unos minutos para ver su estado.` +
+                        (skipped ? ` · Omitidas (ya enviadas): ${skipped}` : '');
+                    return;
+                }
                 resSummary.textContent =
-                    `Total valor procesado: $${fmt(totalValor)} · Seleccionadas: ${results.length} · Solicitadas: ${(json?.requested_ids||[]).length}`;
+                    `Total valor procesado: $${fmt(totalValor)} · Seleccionadas: ${results.length} · Solicitadas: ${(json?.requested_ids||[]).length}` +
+                    (skipped ? ` · Omitidas (ya enviadas): ${skipped}` : '');
             }
+
+            let enviando = false; // evita doble envío a BC por doble clic
+            const btnApply = $('#bulkApply');
 
             bulkForm?.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                if (enviando) return;
 
                 const ids = items.filter(i => i.checked).map(i => i.value);
                 if (!ids.length) {
@@ -1218,6 +1230,8 @@
                     return;
                 }
 
+                enviando = true;
+                if (btnApply) btnApply.disabled = true;
                 setCardVisible(true);
                 setLoading(true);
 
@@ -1252,6 +1266,8 @@
                     resSummary.textContent = 'Error de red o servidor.';
                 } finally {
                     setLoading(false);
+                    enviando = false;
+                    if (btnApply) btnApply.disabled = false;
                 }
             });
 

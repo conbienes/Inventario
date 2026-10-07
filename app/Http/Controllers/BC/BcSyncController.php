@@ -17,7 +17,7 @@ class BcSyncController extends Controller
 
     public function testEjemplo(Request $req, BusinessCentralService $bc)
     {
-        $companyId = $req->input('companyId', env('BC_COMPANY_ID'));
+        $companyId = $req->input('companyId', config('services.bc.company_id'));
         if (!$companyId) {
             return response()->json(['error' => 'Falta companyId'], 400);
         }
@@ -105,7 +105,7 @@ class BcSyncController extends Controller
     // (Tu método crearDiario original lo puedes dejar igual, es útil para mandar 1 sola línea ad hoc)
     public function crearDiario(Request $req, BusinessCentralService $bc)
     {
-        $companyId = $req->input('companyId', env('BC_COMPANY_ID'));
+        $companyId = $req->input('companyId', config('services.bc.company_id'));
         if (!$companyId) {
             return response()->json(['error' => 'Falta companyId'], 400);
         }
@@ -134,7 +134,7 @@ class BcSyncController extends Controller
 
     public function crearDimension(Request $req, BusinessCentralService $bc)
     {
-        $companyId = $req->input('companyId', env('BC_COMPANY_ID'));
+        $companyId = $req->input('companyId', config('services.bc.company_id'));
         if (!$companyId) {
             return response()->json(['error' => 'Falta companyId'], 400);
         }

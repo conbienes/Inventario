@@ -37,6 +37,13 @@ class BonoRegaloController extends Controller
         // 1) Ubica un registro de CargaBC por id (de tu id_ref) y valida que sea del usuario actual
         $registro = CargaBC::where('id', $id)->firstOrFail();
 
+        // Solo el empleado que hizo la venta o un administrador del módulo puede imprimirla
+        abort_unless(
+            (int) $registro->idEmpleado === (int) Auth::id() || $this->esAdminBonoRegalo(),
+            403,
+            'No tienes permiso para imprimir esta factura.'
+        );
+
         // 2) Con ese registro resuelves el número de factura
         $facturaNo = $registro->factura;
 
@@ -59,6 +66,16 @@ class BonoRegaloController extends Controller
             'fechaMin' => $fechaMin,
             'cedula' => $cedula,
         ]);
+    }
+
+    // Permisos 1 (Administrador) y 2 (Administrador2) en el módulo Bono Regalo (3)
+    private function esAdminBonoRegalo(): bool
+    {
+        return DB::table('empleado_modulo_permiso')
+            ->where('id_empleado', Auth::id())
+            ->where('id_modulo', 3)
+            ->whereIn('id_permiso', [1, 2])
+            ->exists();
     }
 
     public function Reportes(Request $request)

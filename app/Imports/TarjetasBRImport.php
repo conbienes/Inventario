@@ -3,181 +3,170 @@
 namespace App\Imports;
 
 use App\Models\BonoRegalo\TarjetaBonoR;
-use Maatwebsite\Excel\Concerns\ToModel;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Concerns\ToCollection;
+use Maatwebsite\Excel\Concerns\WithCustomCsvSettings;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithValidation;
-use Maatwebsite\Excel\Concerns\SkipsOnFailure;
-use Maatwebsite\Excel\Concerns\SkipsFailures;
-use Maatwebsite\Excel\Concerns\Importable;
-use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
+use PhpOffice\PhpSpreadsheet\Cell\StringValueBinder;
 
-class TarjetasBRImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnFailure
+/**
+ * Importa tarjetas Bono Regalo desde CSV, XLSX o XLS (columnas: numero, nit, valor, estado).
+ *
+ * - Valida cada fila y reporta los errores por número de fila.
+ * - Revisa duplicados (contra la BD y dentro del mismo archivo) con una sola consulta.
+ * - Inserta las filas válidas; las inválidas se reportan y no se guardan.
+ */
+// StringValueBinder: las celdas del CSV se leen como texto tal cual ("50.000" no se convierte en 50,
+// y los números de tarjeta de 16 dígitos no pierden precisión al pasar por float)
+class TarjetasBRImport extends StringValueBinder implements ToCollection, WithHeadingRow, WithCustomCsvSettings, WithCustomValueBinder
 {
-    use Importable, SkipsFailures;
+    private int $importados = 0;
+    private int $filasProcesadas = 0;
+    private array $erroresLista = [];
 
-    private $importados = 0;
-    private $errores = 0;
-    private $erroresLista = [];
-    private $filasProcesadas = 0;
-
-    public function model(array $row)
+    public function __construct(private string $delimitadorCsv = ';')
     {
-        $this->filasProcesadas++;
-        
-        // LOG DE CADA FILA PROCESADA
-        Log::info('📄 FILA ' . $this->filasProcesadas . ' PROCESADA:', $row);
-        
-        try {
-            // Buscar las columnas por cualquier nombre posible
-            $numero = $this->getValue($row, ['numero', 'Numero', 'Número', 'NUMERO']);
-            $nit = $this->getValue($row, ['nit', 'Nit', 'NIT', 'cedula', 'Cedula']);
-            $valor = $this->getValue($row, ['valor', 'Valor', 'VALOR', 'monto', 'Monto']);
-            $estado = $this->getValue($row, ['estado', 'Estado', 'ESTADO', 'status', 'Status']);
+    }
 
-            Log::info('🔍 DATOS EXTRAÍDOS:', [
+    public function getCsvSettings(): array
+    {
+        return ['delimiter' => $this->delimitadorCsv, 'input_encoding' => 'UTF-8'];
+    }
+
+    /** Detecta el separador mirando la línea de encabezados del CSV */
+    public static function detectarDelimitador(string $ruta): string
+    {
+        $fh = fopen($ruta, 'r');
+        $primera = (string) fgets($fh);
+        fclose($fh);
+        foreach ([';', ',', "\t", '|'] as $sep) {
+            if (str_contains($primera, $sep)) {
+                return $sep;
+            }
+        }
+
+        return ';';
+    }
+
+    public function collection(Collection $rows): void
+    {
+        $validas = [];
+
+        foreach ($rows as $i => $row) {
+            $fila = $i + 2; // fila 1 = encabezados
+
+            $numeroCrudo = $this->valor($row, ['numero', 'num', 'tarjeta']);
+            $numero = $this->numeroTarjeta($numeroCrudo);
+            $nit = trim((string) $this->valor($row, ['nit', 'cedula']));
+            $valorOriginal = $this->valor($row, ['valor', 'monto']);
+            $estado = strtolower(trim((string) $this->valor($row, ['estado', 'status'])));
+
+            // Fila completamente vacía: se ignora
+            if ($numero === '' && $nit === '' && trim((string) $valorOriginal) === '' && $estado === '') {
+                continue;
+            }
+
+            $this->filasProcesadas++;
+            $valor = TarjetaBonoR::parsearValor($valorOriginal);
+
+            $error = match (true) {
+                // Excel guarda los números con 15 dígitos significativos: un número de tarjeta en celda numérica ya viene alterado
+                is_int($numeroCrudo) || is_float($numeroCrudo) => "Número de tarjeta en celda numérica de Excel (pierde dígitos). Formatea la columna numero como Texto y vuelve a escribirlo",
+                !preg_match('/^\d{16}$/', $numero) => "Número '{$numero}' inválido: debe tener exactamente 16 dígitos",
+                $nit === '' => "NIT vacío para tarjeta {$numero}",
+                mb_strlen($nit) > 20 => "NIT demasiado largo para tarjeta {$numero}",
+                $valor === null || $valor <= 0 => "Valor '" . trim((string) $valorOriginal) . "' no es válido (debe ser mayor a 0) para tarjeta {$numero}",
+                !in_array($estado, ['activa', 'inactiva', 'activo', 'inactivo'], true) => "Estado '{$estado}' no válido para tarjeta {$numero}. Debe ser: activa o inactiva",
+                isset($validas[$numero]) => "Tarjeta {$numero} repetida dentro del archivo",
+                default => null,
+            };
+
+            if ($error) {
+                $this->erroresLista[] = "Fila {$fila}: {$error}";
+                continue;
+            }
+
+            $validas[$numero] = [
+                'fila' => $fila,
                 'numero' => $numero,
                 'nit' => $nit,
                 'valor' => $valor,
-                'estado' => $estado
-            ]);
-
-            // Si no hay datos, saltar
-            if (empty($numero) && empty($nit) && empty($valor) && empty($estado)) {
-                Log::warning('⚠️ Fila vacía, saltando');
-                return null;
-            }
-
-            // Validaciones detalladas
-            if (empty($numero)) {
-                $this->errores++;
-                $this->erroresLista[] = "❌ Fila {$this->filasProcesadas}: Número de tarjeta vacío";
-                Log::warning('❌ Número vacío en fila ' . $this->filasProcesadas);
-                return null;
-            }
-
-            $numero = trim((string) $numero);
-            if (strlen($numero) != 16) {
-                $this->errores++;
-                $this->erroresLista[] = "❌ Fila {$this->filasProcesadas}: Número '$numero' debe tener 16 dígitos (tiene " . strlen($numero) . ")";
-                Log::warning('❌ Número incorrecto en fila ' . $this->filasProcesadas . ': ' . $numero);
-                return null;
-            }
-
-            if (!is_numeric($numero)) {
-                $this->errores++;
-                $this->erroresLista[] = "❌ Fila {$this->filasProcesadas}: Número '$numero' debe ser solo números";
-                return null;
-            }
-
-            if (empty($nit)) {
-                $this->errores++;
-                $this->erroresLista[] = "❌ Fila {$this->filasProcesadas}: NIT vacío para tarjeta $numero";
-                return null;
-            }
-
-            $valor = floatval($valor);
-            if ($valor <= 0) {
-                $this->errores++;
-                $this->erroresLista[] = "❌ Fila {$this->filasProcesadas}: Valor '$valor' debe ser mayor a 0 para tarjeta $numero";
-                return null;
-            }
-
-            if (empty($estado)) {
-                $this->errores++;
-                $this->erroresLista[] = "❌ Fila {$this->filasProcesadas}: Estado vacío para tarjeta $numero";
-                return null;
-            }
-
-            $estado = strtolower(trim($estado));
-            if (!in_array($estado, ['activa', 'inactiva', 'activo', 'inactivo'])) {
-                $this->errores++;
-                $this->erroresLista[] = "❌ Fila {$this->filasProcesadas}: Estado '$estado' no válido para tarjeta $numero. Debe ser: activa, activo, inactiva o inactivo";
-                return null;
-            }
-
-            // Normalizar estado
-            $estadoNormalizado = in_array($estado, ['activa', 'activo']) ? 'activa' : 'inactiva';
-
-            // Verificar duplicado
-            $existe = TarjetaBonoR::where('numero', $numero)->exists();
-            if ($existe) {
-                $this->errores++;
-                $this->erroresLista[] = "⚠️ Fila {$this->filasProcesadas}: Tarjeta duplicada: $numero (ya existe)";
-                return null;
-            }
-
-            $this->importados++;
-            Log::info('✅ Tarjeta válida para importar:', ['numero' => $numero, 'nit' => $nit, 'valor' => $valor, 'estado' => $estadoNormalizado]);
-            
-            return new TarjetaBonoR([
-                'numero' => $numero,
-                'nit' => trim((string) $nit),
-                'valor' => $valor,
-                'estado' => $estadoNormalizado,
-            ]);
-
-        } catch (\Exception $e) {
-            $this->errores++;
-            $this->erroresLista[] = "💥 Fila {$this->filasProcesadas}: Error: " . $e->getMessage();
-            Log::error('💥 Error en fila ' . $this->filasProcesadas . ': ' . $e->getMessage());
-            return null;
+                'estado' => in_array($estado, ['activa', 'activo'], true) ? 'activa' : 'inactiva',
+            ];
         }
+
+        // Duplicados contra la BD: una sola consulta
+        $existentes = TarjetaBonoR::whereIn('numero', array_keys($validas))->pluck('numero')->flip();
+        foreach ($validas as $numero => $t) {
+            if ($existentes->has($numero)) {
+                $this->erroresLista[] = "Fila {$t['fila']}: Tarjeta {$numero} ya existe";
+                unset($validas[$numero]);
+            }
+        }
+
+        if (!$validas) {
+            return;
+        }
+
+        $ahora = now();
+        $registros = array_map(fn($t) => [
+            'numero' => $t['numero'],
+            'nit' => $t['nit'],
+            'valor' => $t['valor'],
+            'estado' => $t['estado'],
+            'created_at' => $ahora,
+            'updated_at' => $ahora,
+        ], array_values($validas));
+
+        DB::transaction(function () use ($registros) {
+            foreach (array_chunk($registros, 500) as $lote) {
+                TarjetaBonoR::insert($lote);
+            }
+        });
+
+        $this->importados = count($registros);
     }
 
-    /**
-     * Obtiene un valor del array buscando por múltiples nombres de columna
-     */
-    private function getValue($row, $keys)
+    /** Excel puede entregar el número como float: se convierte sin notación científica */
+    private function numeroTarjeta($v): string
     {
-        foreach ($keys as $key) {
-            if (isset($row[$key]) && !empty($row[$key])) {
-                return $row[$key];
+        if (is_int($v) || is_float($v)) {
+            return sprintf('%.0f', $v);
+        }
+
+        return preg_replace('/\s+/', '', trim((string) $v));
+    }
+
+    /** Valor de la primera columna que exista entre los nombres aceptados (encabezados ya normalizados) */
+    private function valor($row, array $claves)
+    {
+        foreach ($claves as $k) {
+            if (isset($row[$k]) && $row[$k] !== '') {
+                return $row[$k];
             }
         }
+
         return null;
     }
 
-    public function rules(): array
-    {
-        return [
-            'numero' => 'required|digits:16|numeric',
-            'nit' => 'required|string|max:20',
-            'valor' => 'required|numeric|min:0',
-            'estado' => 'required|in:activa,inactiva,activo,inactivo',
-        ];
-    }
-
-    public function customValidationMessages()
-    {
-        return [
-            'numero.required' => '❌ El número de tarjeta es obligatorio.',
-            'numero.digits' => '❌ El número de tarjeta debe tener 16 dígitos.',
-            'numero.numeric' => '❌ El número de tarjeta debe ser numérico.',
-            'nit.required' => '❌ El NIT es obligatorio.',
-            'valor.required' => '❌ El valor es obligatorio.',
-            'valor.numeric' => '❌ El valor debe ser numérico.',
-            'valor.min' => '❌ El valor no puede ser negativo.',
-            'estado.required' => '❌ El estado es obligatorio.',
-            'estado.in' => '❌ El estado debe ser "activa", "activo", "inactiva" o "inactivo".',
-        ];
-    }
-
-    public function getImportados()
+    public function getImportados(): int
     {
         return $this->importados;
     }
 
-    public function getErrores()
+    public function getErrores(): int
     {
-        return $this->errores;
+        return count($this->erroresLista);
     }
 
-    public function getErroresLista()
+    public function getErroresLista(): array
     {
         return $this->erroresLista;
     }
 
-    public function getFilasProcesadas()
+    public function getFilasProcesadas(): int
     {
         return $this->filasProcesadas;
     }

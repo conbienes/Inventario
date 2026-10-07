@@ -7,7 +7,8 @@ use Illuminate\Http\Request;
 use App\Models\BonoRegalo\ClienteBonoR;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
-use App\Services\BusinessCentralService;
+use App\Jobs\BonoRegalo\SincronizarClienteBCJob;
+use App\Services\BonoRegalo\ClienteBCSyncService;
 
 class ClientesBRController extends Controller
 {
@@ -56,7 +57,7 @@ class ClientesBRController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, BusinessCentralService $bc)
+    public function store(Request $request, ClienteBCSyncService $syncService)
     {
         // Normalización
         $request->merge([
@@ -155,9 +156,6 @@ class ClientesBRController extends Controller
         // Helper para mayúsculas con tildes
         $UP = fn($x) => $x !== null && $x !== '' ? mb_strtoupper($x, 'UTF-8') : null;
 
-        // Nombre unificado (opcional, crea la columna si la usas)
-        $nombreMostrar = $esEmpresa ? $UP($v['razon_social'] ?? null) : trim(implode(' ', array_filter([$UP($v['nombre'] ?? null), $UP($v['segundo_nombre'] ?? null), $UP($v['apellidos'] ?? null), $UP($v['segundo_apellido'] ?? null)])));
-
         try {
             $cliente = ClienteBonoR::create([
                 'tipo_documento' => $v['tipo_documento'],
@@ -171,137 +169,24 @@ class ClientesBRController extends Controller
                 'segundo_apellido' => !$esEmpresa ? $UP($v['segundo_apellido'] ?? null) : null,
             ]);
 
-            $sync = $this->syncCustomerToBC($cliente, $bc, $nombreMostrar);
-
-            $syncDimension = $this->crearDimension($cliente, $bc, $nombreMostrar);
-
-            // 4) Marcar cargado y campos BC
-            $cliente->cargado = $sync['ok'] ? 1 : 0;
-            $cliente->bc_system_id = $sync['final']['systemId'] ?? null;
-            $cliente->bc_etag = $sync['final']['@odata.etag'] ?? null;
-            $cliente->bc_synced_at = now();
-            $cliente->bc_error = $sync['ok'] ? null : $sync['error'] ?? null;
-            $cliente->save();
-
-            $msgDim = !empty($syncDimension['ok']) && $syncDimension['ok'] ? ' creada/actualizada.' : ' (dimensión pendiente: ' . ($syncDimension['error'] ?? 'error desconocido') . ')';
+            // Sincronización con BC: en cola si BC_ASYNC=true, si no en esta misma petición
+            if (config('services.bc.async')) {
+                SincronizarClienteBCJob::dispatch($cliente->id);
+                $msgBC = 'Se sincronizará con BC en unos minutos.';
+            } else {
+                $sync = $syncService->sincronizar($cliente);
+                $msgBC = $sync['ok'] ? 'Sincronizado con BC.' : 'Pendiente por BC (se puede reintentar desde Contabilidad › Clientes).';
+            }
 
             return redirect()
                 ->route('BonoRegalo.IndexFacturas')
-                ->with('success', 'Cliente registrado. ' . ($cliente->cargado ? 'Sincronizado ' : 'Pendiente por BC') . $msgDim);
+                ->with('success', 'Cliente registrado. ' . $msgBC);
         } catch (\Throwable $e) {
+            report($e);
+
             return back()
-                ->withErrors(['error' => 'Error al guardar el cliente en la base de datos: ' . $e->getMessage()])
+                ->withErrors(['error' => 'No se pudo guardar el cliente. Intenta de nuevo o contacta a soporte.'])
                 ->withInput();
-        }
-    }
-
-    private function syncCustomerToBC(ClienteBonoR $c, BusinessCentralService $bc, ?string $nombreMostrar = null): array
-    {
-        try {
-            $companyId = env('BC_COMPANY_ID');
-            if (!$companyId) {
-                return ['ok' => false, 'error' => 'Falta BC_COMPANY_ID'];
-            }
-
-            $esEmpresa = in_array($c->tipo_documento, ['NIT', 'NIT de otro país'], true);
-
-            $tipoIdentificacion = $c->tipo_documento; // usa tus rótulos/códigos
-            $tipoContribuyente = $esEmpresa ? 'Persona Jurídica' : 'Persona Natural';
-            $areaImpuesto = $c->tipoActividad; // "CLI-NRI" / "CLI-RI"
-            $correo = strtolower($c->correo);
-
-            if (!$nombreMostrar) {
-                $nombreMostrar = $esEmpresa ? $c->razons : trim(implode(' ', array_filter([$c->nombre, $c->segundo_nombre, $c->apellidos, $c->segundo_apellido])));
-            }
-
-            // CREATE (sin NumeroIdentificacion)
-            $payloadCreate = array_filter(
-                [
-                    'No' => $c->cedula,
-                    'NombreCompleto' => $nombreMostrar ?: null,
-                    'Correo' => $correo ?: null,
-                    'CorreoFE' => $correo ?: null,
-                    'Tipoidentificacion' => $tipoIdentificacion ?: null,
-                    'TipoContribuyente' => $tipoContribuyente,
-                    'AreaImpuesto' => $areaImpuesto,
-                    'PrimerNombre' => $esEmpresa ? null : ($c->nombre ?: null),
-                    'SegundoNombre' => $esEmpresa ? null : ($c->segundo_nombre ?: null),
-                    'PrimerApellido' => $esEmpresa ? null : ($c->apellidos ?: null),
-                    'SegundoApellido' => $esEmpresa ? null : ($c->segundo_apellido ?: null),
-                    'RazonSocial' => $esEmpresa ? ($c->razons ?: null) : null,
-                ],
-                fn($v) => !(is_string($v) && trim($v) === '') && $v !== null,
-            );
-
-            $created = $bc->createCustomerExt($companyId, $payloadCreate);
-
-            $systemId = $created['systemId'] ?? ($created['SystemId'] ?? null);
-
-            // PATCH (NumeroIdentificacion)
-            $patched = null;
-            $okCreate = (bool) $systemId;
-            $okPatch = true;
-
-            if ($okCreate && !empty($c->cedula)) {
-                $patched = $bc->updateCustomerExt($companyId, $systemId, [
-                    'NumeroIdentificacion' => (string) $c->cedula,
-                ]);
-            }
-            // Tomamos el objeto “final” para persistir (si hubo PATCH, preferimos patched)
-            $final = $patched ?: $created ?: [];
-
-            // Notar que el JSON trae "@odata.etag" y "lastModified"
-            $ok = $okCreate && ($patched !== null ? true : true); // si tu servicio lanza excepción, ya cae al catch
-
-            return [
-                'ok' => $ok,
-                'final' => $final, // <-- lo usaremos para mapear y guardar
-                'created' => $created,
-                'patched' => $patched,
-            ];
-        } catch (\Throwable $e) {
-            return ['ok' => false, 'error' => $e->getMessage()];
-        }
-    }
-
-    private function crearDimension(ClienteBonoR $c, BusinessCentralService $bc, ?string $nombreMostrar = null): array
-    {
-        try {
-            // Lee de .env (con defaults sensatos)
-            $companyId = env('BC_COMPANY_ID');
-            $dimensionCode = env('BC_DIM_TERCERO', 'TERCERO');
-
-            if (!$companyId) {
-                return ['ok' => false, 'error' => 'Falta BC_COMPANY_ID'];
-            }
-
-            // Code: cédula -> bc_no -> id local
-            $code = (string) ($c->cedula ?: $c->bc_no ?: $c->id);
-
-            // Name: si no viene, lo componemos desde el modelo
-            if ($nombreMostrar === null || trim($nombreMostrar) === '') {
-                $nombreMostrar = $c->razon_social ?: trim(preg_replace('/\s+/', ' ', implode(' ', array_filter([$c->nombre, $c->segundo_nombre, $c->apellidos, $c->segundo_apellido]))));
-            }
-
-            // Recortes de seguridad (ajusta si tu API limita distinto)
-            $payload = [
-                'DimensionCode' => $dimensionCode, // <--- usa el de .env
-                'Code' => mb_substr($code, 0, 50),
-                'Name' => mb_substr((string) $nombreMostrar, 0, 100),
-            ];
-
-            // Limpia nulls/cadenas vacías
-            $payload = array_filter($payload, fn($v) => !((is_string($v) && trim($v) === '') || $v === null));
-
-            // UPSERT en BC
-            $resp = $bc->upsertDimensionValue($companyId, $payload);
-
-            // (Opcional) guardar algo en BD:
-            // $c->update(['bc_dim_code'=>$payload['Code'],'bc_dim_name'=>$payload['Name'],'bc_dim_synced_at'=>now()]);
-
-            return ['ok' => true, 'payload' => $payload, 'response' => $resp];
-        } catch (\Throwable $e) {
-            return ['ok' => false, 'error' => $e->getMessage()];
         }
     }
 
@@ -408,8 +293,10 @@ class ClientesBRController extends Controller
 
             return redirect()->route('BonoRegalo.BuscarCliente')->with('success', 'Cliente actualizado correctamente.');
         } catch (\Throwable $e) {
+            report($e);
+
             return back()
-                ->withErrors(['error' => 'Error al actualizar el cliente: ' . $e->getMessage()])
+                ->withErrors(['error' => 'No se pudo actualizar el cliente. Intenta de nuevo o contacta a soporte.'])
                 ->withInput();
         }
     }

@@ -263,7 +263,8 @@ Route::middleware(['auth', 'nivel:1'])
 //////////////////////////////////////////////////////////////Bono regalo/////////////////////////////////////////////////////
 
 //Route::get('/Prueba', [BcSyncController::class, 'companies']);
-Route::match(['get', 'post'], '/bc', [BcSyncController::class, 'testEjemplo']);
+// Desactivada: era pública (sin auth) y creaba asientos reales en BC
+//Route::match(['get', 'post'], '/bc', [BcSyncController::class, 'testEjemplo']);
 
 //Route::get('/bc/custom/cliente', [BcSyncController::class, 'crearClienteExt']);
 
@@ -333,7 +334,7 @@ Route::middleware(['auth', 'nivel:3']) // Middleware personalizado
 
         // ===== SERVICIOS EXTERNOS =====
         Route::post('CargarBC', [ReporteVentasController::class, 'CargarBC'])->name('CargarBC');
-        Route::match(['post', 'get'], 'CargarClientes', [ReporteVentasController::class, 'CargarClientes'])->name('CargarClientes');
+        Route::post('CargarClientes', [ReporteVentasController::class, 'CargarClientes'])->name('CargarClientes'); // solo POST: modifica datos en BC
     });
 
 //////////////////////////////////////////////////////////////Gestion Documental/////////////////////////////////////////////////////

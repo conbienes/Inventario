@@ -41,6 +41,19 @@ class FacturaBonoMail extends Mailable implements ShouldQueue
         $this->afterCommit = true;
     }
 
+    /**
+     * Idempotencia: si el recibo ya se envió (p. ej. el job quedó duplicado por
+     * outbox:send-queued o un reintento), no se vuelve a enviar al cliente.
+     */
+    public function send($mailer)
+    {
+        if (MailOutbox::whereKey($this->outboxId)->value('status') === 'sent') {
+            return null;
+        }
+
+        return parent::send($mailer);
+    }
+
     public function build()
     {
         $empresa = [

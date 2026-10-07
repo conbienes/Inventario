@@ -9,7 +9,7 @@
                 @if(session('success'))
                     <div class="alert alert-success border-0 shadow-sm rounded-3 alert-dismissible fade show d-flex align-items-center" role="alert">
                         <i class="fas fa-check-circle fa-lg me-3 text-success"></i>
-                        <div>{!! session('success') !!}</div>
+                        <div style="white-space: pre-line">{{ session('success') }}</div>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 @endif
@@ -17,7 +17,7 @@
                 @if(session('warning'))
                     <div class="alert alert-warning border-0 shadow-sm rounded-3 alert-dismissible fade show d-flex align-items-center" role="alert">
                         <i class="fas fa-exclamation-triangle fa-lg me-3 text-warning"></i>
-                        <div>{!! session('warning') !!}</div>
+                        <div style="white-space: pre-line">{{ session('warning') }}</div>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 @endif
@@ -25,7 +25,7 @@
                 @if(session('error'))
                     <div class="alert alert-danger border-0 shadow-sm rounded-3 alert-dismissible fade show d-flex align-items-center" role="alert">
                         <i class="fas fa-times-circle fa-lg me-3 text-danger"></i>
-                        <div>{!! session('error') !!}</div>
+                        <div style="white-space: pre-line">{{ session('error') }}</div>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 @endif
@@ -33,7 +33,7 @@
                 @if(session('info'))
                     <div class="alert alert-info border-0 shadow-sm rounded-3 alert-dismissible fade show d-flex align-items-center" role="alert">
                         <i class="fas fa-info-circle fa-lg me-3 text-info"></i>
-                        <div>{!! session('info') !!}</div>
+                        <div style="white-space: pre-line">{{ session('info') }}</div>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 @endif
@@ -46,7 +46,7 @@
                         </div>
                         <ul class="mb-0 mt-1">
                             @foreach ($errors->all() as $error)
-                                <li>{!! $error !!}</li>
+                                <li>{{ $error }}</li>
                             @endforeach
                         </ul>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>

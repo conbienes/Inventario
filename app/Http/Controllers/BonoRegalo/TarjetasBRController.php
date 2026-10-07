@@ -106,11 +106,11 @@ class TarjetasBRController extends Controller
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Error al guardar tarjeta: ' . $e->getMessage());
+            Log::error('Error al guardar tarjeta: ' . TarjetaBonoR::enmascarar($e->getMessage()));
 
             return redirect()
                 ->back()
-                ->withErrors(['error' => '❌ Error al guardar la tarjeta: ' . $e->getMessage()])
+                ->withErrors(['error' => '❌ No se pudo guardar la tarjeta. Intenta de nuevo o contacta a soporte.'])
                 ->withInput();
         }
     }
@@ -118,11 +118,24 @@ class TarjetasBRController extends Controller
     public function edit(string $id)
     {
         $tarjeta = TarjetaBonoR::findOrFail($id);
+
+        if ($tarjeta->estaVendida()) {
+            return redirect()->route('BonoRegalo.BuscarTarjeta')
+                ->with('error', 'La tarjeta #' . e($tarjeta->numero) . ' ya fue vendida y no se puede editar.');
+        }
+
         return view('BonoRegalo.Tarjetas.editarTarjeta', compact('tarjeta'));
     }
 
     public function update(Request $request, string $id)
     {
+        $tarjeta = TarjetaBonoR::findOrFail($id);
+
+        if ($tarjeta->estaVendida()) {
+            return redirect()->route('BonoRegalo.BuscarTarjeta')
+                ->with('error', 'La tarjeta #' . e($tarjeta->numero) . ' ya fue vendida y no se puede editar.');
+        }
+
         $validatedData = $request->validate(
             [
                 'numero' => ['required', 'numeric', 'digits:16', Rule::unique('tarjetasBonoR', 'numero')->ignore($id)],
@@ -143,7 +156,6 @@ class TarjetasBRController extends Controller
 
         try {
             DB::beginTransaction();
-            $tarjeta = TarjetaBonoR::findOrFail($id);
             $tarjeta->update($validatedData);
             DB::commit();
 
@@ -152,11 +164,11 @@ class TarjetasBRController extends Controller
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Error al actualizar tarjeta: ' . $e->getMessage());
+            Log::error('Error al actualizar tarjeta: ' . TarjetaBonoR::enmascarar($e->getMessage()));
 
             return redirect()
                 ->back()
-                ->withErrors(['error' => '❌ Error al actualizar la tarjeta: ' . $e->getMessage()])
+                ->withErrors(['error' => '❌ No se pudo actualizar la tarjeta. Intenta de nuevo o contacta a soporte.'])
                 ->withInput();
         }
     }
@@ -166,386 +178,88 @@ class TarjetasBRController extends Controller
         try {
             return Excel::download(new TarjetasBRExport($request), 'tarjetas_bono_' . date('Y-m-d') . '.xlsx');
         } catch (\Exception $e) {
-            Log::error('Error al exportar tarjetas: ' . $e->getMessage());
+            Log::error('Error al exportar tarjetas: ' . TarjetaBonoR::enmascarar($e->getMessage()));
             return redirect()->back()
-                ->withErrors(['error' => '❌ Error al exportar: ' . $e->getMessage()]);
+                ->withErrors(['error' => '❌ No se pudo generar la exportación. Intenta de nuevo o contacta a soporte.']);
         }
     }
 
     public function importarTarjetas(Request $request)
     {
-        // ============================================
-        // 🔥 SISTEMA DE LOGS FORZADO
-        // ============================================
-        $logFile = storage_path('logs/importacion_' . date('Y-m-d') . '.log');
-        
-        $writeLog = function($message, $data = null) use ($logFile) {
-            $timestamp = date('Y-m-d H:i:s');
-            $logMessage = "[$timestamp] ";
-            
-            if (is_array($message) || is_object($message)) {
-                $logMessage .= print_r($message, true);
-            } else {
-                $logMessage .= $message;
-            }
-            
-            if ($data !== null) {
-                $logMessage .= "\n" . print_r($data, true);
-            }
-            
-            $logMessage .= "\n" . str_repeat("-", 50) . "\n";
-            
-            $logDir = dirname($logFile);
-            if (!is_dir($logDir)) {
-                mkdir($logDir, 0777, true);
-            }
-            
-            file_put_contents($logFile, $logMessage, FILE_APPEND);
-        };
-        
-        // ============================================
-        // REGISTRAR INICIO
-        // ============================================
-        $writeLog("=========================================");
-        $writeLog("🚀 INICIO DE IMPORTACIÓN");
-        $writeLog("Fecha: " . date('Y-m-d H:i:s'));
-        $writeLog("IP: " . $request->ip());
-        $writeLog("URL: " . $request->fullUrl());
-        $writeLog("Método: " . $request->method());
-        $writeLog("=========================================");
-        
-        // Intentar log de Laravel
-        try {
-            Log::emergency('🚨 INICIO IMPORTACIÓN DESDE LARAVEL');
-            Log::info('📝 Método ejecutado');
-        } catch (\Exception $e) {
-            $writeLog("⚠️ Error con Log de Laravel: " . $e->getMessage());
+        $request->validate([
+            'archivo' => 'required|file|max:2048|mimes:csv,txt,xlsx,xls',
+        ], [
+            'archivo.required' => 'Debes seleccionar un archivo para importar.',
+            'archivo.max' => 'El archivo no debe superar los 2MB.',
+            'archivo.mimes' => 'Solo se permiten archivos .csv, .xlsx o .xls.',
+        ]);
+
+        $archivo = $request->file('archivo');
+        $extension = strtolower($archivo->getClientOriginalExtension());
+        $tipos = ['csv' => \Maatwebsite\Excel\Excel::CSV, 'xlsx' => \Maatwebsite\Excel\Excel::XLSX, 'xls' => \Maatwebsite\Excel\Excel::XLS];
+
+        if (!isset($tipos[$extension])) {
+            return back()->withErrors(['archivo' => 'Solo se permiten archivos .csv, .xlsx o .xls.']);
         }
-        
-        // ============================================
-        // PROCESAR IMPORTACIÓN
-        // ============================================
+
         try {
-            // Validar archivo
-            $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
-                'archivo' => 'required|file|max:2048',
-            ], [
-                'archivo.required' => 'Debes seleccionar un archivo para importar.',
-                'archivo.max' => 'El archivo no debe superar los 2MB.',
+            $delimitador = $extension === 'csv' ? TarjetasBRImport::detectarDelimitador($archivo->getRealPath()) : ';';
+            $import = new TarjetasBRImport($delimitador);
+            Excel::import($import, $archivo, null, $tipos[$extension]);
+
+            Log::info('Importación de tarjetas Bono Regalo', [
+                'user_id' => auth()->id(),
+                'archivo' => $archivo->getClientOriginalName(),
+                'filas' => $import->getFilasProcesadas(),
+                'importadas' => $import->getImportados(),
+                'errores' => array_map([TarjetaBonoR::class, 'enmascarar'], $import->getErroresLista()),
             ]);
-    
-            if ($validator->fails()) {
-                $writeLog("❌ Validación falló", $validator->errors()->toArray());
-                return redirect()->back()->withErrors($validator)->withInput();
-            }
-    
-            $archivo = $request->file('archivo');
-            $extension = strtolower($archivo->getClientOriginalExtension());
-            $nombreOriginal = $archivo->getClientOriginalName();
-            
-            $writeLog("📁 Archivo recibido:", [
-                'nombre' => $nombreOriginal,
-                'extension' => $extension,
-                'tamano' => $archivo->getSize() . ' bytes',
-                'mime' => $archivo->getMimeType(),
-                'ruta' => $archivo->getRealPath()
-            ]);
-    
-            // Verificar extensión
-            if (!in_array($extension, ['csv', 'xlsx', 'xls'])) {
-                $writeLog("❌ Extensión no permitida: " . $extension);
-                return redirect()->back()
-                    ->withErrors(['archivo' => '❌ Solo se permiten archivos: .csv, .xlsx, .xls'])
-                    ->withInput();
-            }
-    
-            // ============================================
-            // 🔥 LECTURA MANUAL DEL ARCHIVO (para CSV)
-            // ============================================
-            if ($extension === 'csv') {
-                $writeLog("📄 Procesando archivo CSV manualmente");
-                
-                // Leer contenido del archivo
-                $contenido = file_get_contents($archivo->getRealPath());
-                $writeLog("📄 CONTENIDO COMPLETO DEL ARCHIVO:", $contenido);
-                
-                // Dividir por líneas
-                $lineas = explode("\n", $contenido);
-                $writeLog("📄 ANÁLISIS DEL ARCHIVO:", [
-                    'total_lineas' => count($lineas),
-                    'lineas_no_vacias' => count(array_filter($lineas, 'trim')),
-                    'primera_linea' => isset($lineas[0]) ? trim($lineas[0]) : 'VACÍA',
-                    'segunda_linea' => isset($lineas[1]) ? trim($lineas[1]) : 'VACÍA',
-                    'tercera_linea' => isset($lineas[2]) ? trim($lineas[2]) : 'VACÍA',
-                ]);
-                
-                // Detectar separador
-                $primeraLinea = isset($lineas[0]) ? trim($lineas[0]) : '';
-                $separadores = [';', ',', "\t", '|'];
-                $separadorEncontrado = ';';
-                
-                foreach ($separadores as $sep) {
-                    if (strpos($primeraLinea, $sep) !== false) {
-                        $separadorEncontrado = $sep;
-                        break;
-                    }
-                }
-                
-                $writeLog("🔍 Separador detectado: '" . $separadorEncontrado . "'");
-                
-                // Iniciar transacción
-                DB::beginTransaction();
-                $writeLog("🔄 Transacción iniciada");
-                
-                // Procesar líneas manualmente
-                $importados = 0;
-                $errores = [];
-                $filasProcesadas = 0;
-                
-                // Saltar la primera línea (encabezados)
-                foreach (array_slice($lineas, 1) as $index => $linea) {
-                    $linea = trim($linea);
-                    if (empty($linea)) {
-                        $writeLog("⚠️ Línea " . ($index + 2) . " vacía, saltando");
-                        continue;
-                    }
-                    
-                    $filasProcesadas++;
-                    $writeLog("📝 Procesando línea " . ($index + 2) . ":", $linea);
-                    
-                    // Dividir por el separador detectado
-                    $datos = str_getcsv($linea, $separadorEncontrado);
-                    
-                    // Si no tiene el número correcto de elementos, intentar con otro separador
-                    if (count($datos) < 4) {
-                        $writeLog("⚠️ Probando con coma como separador");
-                        $datos = str_getcsv($linea, ',');
-                    }
-                    
-                    if (count($datos) < 4) {
-                        $writeLog("❌ Línea " . ($index + 2) . " tiene " . count($datos) . " elementos, se esperaban 4");
-                        $errores[] = "Fila " . ($index + 2) . ": Formato incorrecto - " . $linea;
-                        continue;
-                    }
-                    
-                    // Limpiar datos
-                    $numero = trim($datos[0]);
-                    $nit = trim($datos[1]);
-                    $valor = floatval(str_replace(['$', ',', '.'], '', trim($datos[2])));
-                    $estado = trim(strtolower($datos[3]));
-                    
-                    $writeLog("📊 Datos procesados:", [
-                        'numero' => $numero,
-                        'nit' => $nit,
-                        'valor' => $valor,
-                        'estado' => $estado
-                    ]);
-                    
-                    // Validar datos
-                    if (empty($numero) || strlen($numero) != 16 || !is_numeric($numero)) {
-                        $errores[] = "Fila " . ($index + 2) . ": Número inválido - $numero";
-                        continue;
-                    }
-                    
-                    if (empty($nit)) {
-                        $errores[] = "Fila " . ($index + 2) . ": NIT vacío";
-                        continue;
-                    }
-                    
-                    if ($valor < 0) {
-                        $errores[] = "Fila " . ($index + 2) . ": Valor inválido - $valor";
-                        continue;
-                    }
-                    
-                    if (!in_array($estado, ['activa', 'inactiva'])) {
-                        $errores[] = "Fila " . ($index + 2) . ": Estado inválido - $estado (debe ser activa o inactiva)";
-                        continue;
-                    }
-                    
-                    // Verificar si la tarjeta ya existe
-                    $existe = TarjetaBonoR::where('numero', $numero)->exists();
-                    if ($existe) {
-                        $errores[] = "Fila " . ($index + 2) . ": Tarjeta $numero ya existe";
-                        continue;
-                    }
-                    
-                    try {
-                        // Crear la tarjeta
-                        TarjetaBonoR::create([
-                            'numero' => $numero,
-                            'nit' => $nit,
-                            'valor' => $valor,
-                            'estado' => $estado
-                        ]);
-                        $importados++;
-                        $writeLog("✅ Tarjeta $numero importada correctamente");
-                    } catch (\Exception $e) {
-                        $errores[] = "Fila " . ($index + 2) . ": " . $e->getMessage();
-                        $writeLog("❌ Error al guardar tarjeta $numero:", $e->getMessage());
-                    }
-                }
-                
-                DB::commit();
-                $writeLog("✅ Transacción completada");
-                
-                $writeLog("📊 RESULTADOS FINALES:", [
-                    'filas_procesadas' => $filasProcesadas,
-                    'importados' => $importados,
-                    'errores' => count($errores),
-                    'lista_errores' => $errores
-                ]);
-                
-                // ============================================
-                // MOSTRAR RESULTADOS
-                // ============================================
-                if ($filasProcesadas == 0) {
-                    $mensaje = "⚠️ El archivo fue procesado pero no se encontraron datos.<br>";
-                    $mensaje .= "<br><strong>🔍 Posibles causas:</strong>";
-                    $mensaje .= "<ul>";
-                    $mensaje .= "<li>Los encabezados no coinciden: deben ser <strong>numero, nit, valor, estado</strong></li>";
-                    $mensaje .= "<li>El archivo está vacío o solo tiene encabezados</li>";
-                    $mensaje .= "<li>El separador no es punto y coma (;) o coma (,) </li>";
-                    $mensaje .= "</ul>";
-                    $mensaje .= "<br><small>Revisa el log en storage/logs/importacion_" . date('Y-m-d') . ".log para más detalles.</small>";
-                    
-                    return redirect()->route('BonoRegalo.BuscarTarjeta')
-                        ->with('warning', $mensaje);
-                }
-                
-                if (count($errores) > 0) {
-                    $mensaje = "❌ Se encontraron <strong>" . count($errores) . "</strong> errores en el archivo.<br>";
-                    $mensaje .= "✅ Se importaron <strong>{$importados}</strong> tarjetas correctamente.<br><br>";
-                    
-                    if (count($errores) > 0) {
-                        $detalles = "<strong>🔍 Detalles de errores:</strong><ul class='mb-0 mt-1'>";
-                        foreach (array_slice($errores, 0, 10) as $error) {
-                            $detalles .= "<li class='small text-danger'>" . htmlspecialchars($error) . "</li>";
-                        }
-                        if (count($errores) > 10) {
-                            $detalles .= "<li class='small text-muted'>... y " . (count($errores) - 10) . " errores más. Revisa el log para detalles completos.</li>";
-                        }
-                        $detalles .= "</ul>";
-                        $mensaje .= $detalles;
-                    }
-                    
-                    $mensaje .= "<br><small>Log completo en: storage/logs/importacion_" . date('Y-m-d') . ".log</small>";
-                    
-                    return redirect()->route('BonoRegalo.BuscarTarjeta')
-                        ->with('error', $mensaje);
-                }
-                
-                if ($importados > 0) {
-                    $mensaje = "🎉 ¡Excelente! Se importaron <strong>{$importados}</strong> tarjetas correctamente.";
-                    $mensaje .= "<br><small class='text-muted'>Todas las tarjetas fueron procesadas sin errores.</small>";
-                    $mensaje .= "<br><small>Log completo en: storage/logs/importacion_" . date('Y-m-d') . ".log</small>";
-                    
-                    return redirect()->route('BonoRegalo.BuscarTarjeta')
-                        ->with('success', $mensaje);
-                }
-                
-                return redirect()->route('BonoRegalo.BuscarTarjeta')
-                    ->with('info', 'El archivo no contenía datos para importar.');
-                    
-            } else {
-                // ============================================
-                // PROCESAR EXCEL (xlsx, xls)
-                // ============================================
-                $writeLog("📄 Procesando archivo Excel con Maatwebsite");
-                
-                DB::beginTransaction();
-                $writeLog("🔄 Transacción iniciada");
-                
-                $import = new TarjetasBRImport();
-                $writeLog("📦 Importador creado");
-                
-                Excel::import($import, $archivo);
-                
-                DB::commit();
-                $writeLog("✅ Transacción completada");
-                
-                $importados = $import->getImportados();
-                $errores = $import->getErrores();
-                $erroresLista = $import->getErroresLista();
-                $filasProcesadas = $import->getFilasProcesadas();
-                
-                $writeLog("📊 RESULTADOS FINALES:", [
-                    'filas_procesadas' => $filasProcesadas,
-                    'importados' => $importados,
-                    'errores' => $errores,
-                    'lista_errores' => $erroresLista
-                ]);
-                
-                if ($filasProcesadas == 0) {
-                    $mensaje = "⚠️ El archivo fue procesado pero no se encontraron datos.<br>";
-                    $mensaje .= "<br><strong>🔍 Posibles causas:</strong>";
-                    $mensaje .= "<ul>";
-                    $mensaje .= "<li>Los encabezados no coinciden: deben ser <strong>numero, nit, valor, estado</strong></li>";
-                    $mensaje .= "<li>El archivo está vacío o solo tiene encabezados</li>";
-                    $mensaje .= "</ul>";
-                    $mensaje .= "<br><small>Revisa el log en storage/logs/importacion_" . date('Y-m-d') . ".log para más detalles.</small>";
-                    
-                    return redirect()->route('BonoRegalo.BuscarTarjeta')
-                        ->with('warning', $mensaje);
-                }
-                
-                if ($errores > 0) {
-                    $mensaje = "❌ Se encontraron <strong>{$errores}</strong> errores en el archivo.<br>";
-                    $mensaje .= "✅ Se importaron <strong>{$importados}</strong> tarjetas correctamente.<br><br>";
-                    
-                    if (count($erroresLista) > 0) {
-                        $detalles = "<strong>🔍 Detalles:</strong><ul class='mb-0 mt-1'>";
-                        foreach (array_slice($erroresLista, 0, 10) as $error) {
-                            $detalles .= "<li class='small text-danger'>" . htmlspecialchars($error) . "</li>";
-                        }
-                        if (count($erroresLista) > 10) {
-                            $detalles .= "<li class='small text-muted'>... y " . (count($erroresLista) - 10) . " errores más.</li>";
-                        }
-                        $detalles .= "</ul>";
-                        $mensaje .= $detalles;
-                    }
-                    
-                    $mensaje .= "<br><small>Log completo en: storage/logs/importacion_" . date('Y-m-d') . ".log</small>";
-                    
-                    return redirect()->route('BonoRegalo.BuscarTarjeta')
-                        ->with('error', $mensaje);
-                }
-                
-                if ($importados > 0) {
-                    $mensaje = "🎉 ¡Excelente! Se importaron <strong>{$importados}</strong> tarjetas correctamente.";
-                    $mensaje .= "<br><small class='text-muted'>Todas las tarjetas fueron procesadas sin errores.</small>";
-                    $mensaje .= "<br><small>Log completo en: storage/logs/importacion_" . date('Y-m-d') . ".log</small>";
-                    
-                    return redirect()->route('BonoRegalo.BuscarTarjeta')
-                        ->with('success', $mensaje);
-                }
-                
-                return redirect()->route('BonoRegalo.BuscarTarjeta')
-                    ->with('info', 'El archivo no contenía datos para importar.');
-            }
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            $writeLog("❌ ERROR GENERAL:", [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            
-            try {
-                Log::error('❌ ERROR GENERAL:', [
-                    'message' => $e->getMessage(),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine()
-                ]);
-            } catch (\Exception $logError) {
-                $writeLog("⚠️ No se pudo escribir en log de Laravel: " . $logError->getMessage());
-            }
-            
-            return redirect()->back()
-                ->withErrors(['error' => '❌ Error al procesar: ' . $e->getMessage()])
-                ->withInput();
+
+            return $this->redirectResultadoImportacion($import->getFilasProcesadas(), $import->getImportados(), $import->getErroresLista());
+        } catch (\Throwable $e) {
+            Log::error('Error al importar tarjetas: ' . TarjetaBonoR::enmascarar($e->getMessage()));
+
+            return back()->withErrors(['error' => '❌ Ocurrió un error al procesar el archivo. Intenta de nuevo o contacta a soporte.']);
         }
+    }
+
+    // Mensaje de resultado de importación en texto plano (la vista lo escapa)
+    private function redirectResultadoImportacion(int $filasProcesadas, int $importados, array $erroresLista, ?int $totalErrores = null)
+    {
+        $totalErrores ??= count($erroresLista);
+        $ruta = redirect()->route('BonoRegalo.BuscarTarjeta');
+
+        if ($filasProcesadas == 0) {
+            return $ruta->with('warning', implode("\n", [
+                '⚠️ El archivo fue procesado pero no se encontraron datos.',
+                'Posibles causas:',
+                '• Los encabezados no coinciden: deben ser numero, nit, valor, estado',
+                '• El archivo está vacío o solo tiene encabezados',
+                '• El separador no es punto y coma (;) o coma (,)',
+            ]));
+        }
+
+        if ($totalErrores > 0) {
+            $lineas = [
+                "❌ Se encontraron {$totalErrores} errores en el archivo.",
+                "✅ Se importaron {$importados} tarjetas correctamente.",
+                'Detalles:',
+            ];
+            foreach (array_slice($erroresLista, 0, 10) as $error) {
+                $lineas[] = '• ' . $error;
+            }
+            if (count($erroresLista) > 10) {
+                $lineas[] = '… y ' . (count($erroresLista) - 10) . ' errores más.';
+            }
+
+            return $ruta->with('error', implode("\n", $lineas));
+        }
+
+        if ($importados > 0) {
+            return $ruta->with('success', "🎉 Se importaron {$importados} tarjetas correctamente, sin errores.");
+        }
+
+        return $ruta->with('info', 'El archivo no contenía datos para importar.');
     }
 
     public function plantillaTarjetas()
@@ -574,6 +288,13 @@ class TarjetasBRController extends Controller
         try {
             DB::beginTransaction();
             $tarjeta = TarjetaBonoR::findOrFail($id);
+
+            if ($tarjeta->estaVendida()) {
+                DB::rollBack();
+                return redirect()->route('BonoRegalo.BuscarTarjeta')
+                    ->with('error', 'La tarjeta #' . e($tarjeta->numero) . ' ya fue vendida y no se puede eliminar.');
+            }
+
             $numero = $tarjeta->numero;
             $tarjeta->delete();
             DB::commit();
@@ -583,10 +304,10 @@ class TarjetasBRController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al eliminar tarjeta: ' . $e->getMessage());
+            Log::error('Error al eliminar tarjeta: ' . TarjetaBonoR::enmascarar($e->getMessage()));
 
             return redirect()->back()
-                ->withErrors(['error' => '❌ Error al eliminar la tarjeta: ' . $e->getMessage()]);
+                ->withErrors(['error' => '❌ No se pudo eliminar la tarjeta. Intenta de nuevo o contacta a soporte.']);
         }
     }
 
@@ -594,6 +315,14 @@ class TarjetasBRController extends Controller
     {
         try {
             $tarjeta = TarjetaBonoR::findOrFail($id);
+
+            if ($tarjeta->estaVendida()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La tarjeta ya fue vendida y no se puede cambiar de estado.',
+                ], 409);
+            }
+
             $nuevoEstado = $tarjeta->estado === 'activa' ? 'inactiva' : 'activa';
             $tarjeta->update(['estado' => $nuevoEstado]);
 
@@ -604,10 +333,10 @@ class TarjetasBRController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al cambiar estado: ' . $e->getMessage());
+            Log::error('Error al cambiar estado: ' . TarjetaBonoR::enmascarar($e->getMessage()));
             return response()->json([
                 'success' => false,
-                'message' => '❌ Error al cambiar el estado: ' . $e->getMessage()
+                'message' => '❌ No se pudo cambiar el estado de la tarjeta.'
             ], 500);
         }
     }

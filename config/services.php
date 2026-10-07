@@ -51,5 +51,27 @@ return [
         'redirect' => env('MICROSOFT_REDIRECT_URI'),
         'tenant' => env('MICROSOFT_TENANT_ID'),
     ],
+    'bc' => [
+        'company_id' => env('BC_COMPANY_ID'),
+        'environment' => env('BC_ENVIRONMENT', 'Production'),
+
+        // true: los envíos a BC se encolan (requiere el worker/scheduler corriendo).
+        // false: se ejecutan en la misma petición (comportamiento actual).
+        'async' => (bool) env('BC_ASYNC', false),
+        'dim_tercero' => env('BC_DIM_TERCERO', 'TERCERO'),
+
+        // Parámetros contables para el envío de facturas de Bono Regalo (no se aceptan desde el request)
+        'bono_regalo' => [
+            'tipo_documento' => env('BC_BR_TIPO_DOCUMENTO', 'Invoice'),
+            'cta_detalle' => env('BC_BR_CTA_DETALLE', '11051002'),
+            'cta_total' => env('BC_BR_CTA_TOTAL', 'BANCOLOMBIA 6289 BR'),
+            'libro_codigo' => env('BC_BR_LIBRO_CODIGO', '1_NIIF'),
+            'codigo_concepto' => env('BC_BR_CODIGO_CONCEPTO', '110409'),
+            'grupo_impuesto' => env('BC_BR_GRUPO_IMPUESTO', 'G COMPR 0%_'),
+            'area_impuesto' => env('BC_BR_AREA_IMPUESTO', 'CLI-NRI'),
+            'diario' => env('BC_BR_DIARIO', 'BONOREGALO'),
+            'seccion' => env('BC_BR_SECCION', 'BONO REG'),
+        ],
+    ],
 
 ];

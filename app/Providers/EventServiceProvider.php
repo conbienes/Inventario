@@ -6,14 +6,9 @@ use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvi
 
 class EventServiceProvider extends ServiceProvider
 {
-    protected $listen = [
-        \Illuminate\Mail\Events\MessageSending::class => [
-            \App\Listeners\MarkOutboxAsSending::class,
-        ],
-        \Illuminate\Mail\Events\MessageSent::class => [
-            \App\Listeners\MarkOutboxAsSent::class,
-        ],
-    ];
+    // Sin $listen: Laravel ya descubre automáticamente MarkOutboxAsSending y MarkOutboxAsSent
+    // en app/Listeners. Declararlos aquí también los registraba dos veces (attempts se sumaba x2).
+    protected $listen = [];
 
     public function shouldDiscoverEvents(): bool
     {
