@@ -56,13 +56,7 @@ class FacturaBonoMail extends Mailable implements ShouldQueue
 
     public function build()
     {
-        $empresa = [
-            'nombre'    => 'ADMINISTRACION MAYORCA S.A.S',
-            'nit'       => '901344877-7',
-            'direccion' => 'CL 51 SUR 48 57 ET1 P8',
-            'telefono'  => '6042333',
-            'titulo'    => 'RECIBOS DE CAJA',
-        ];
+        $empresa = config('bono_regalo.empresa') + ['titulo' => 'RECIBOS DE CAJA'];
 
         $pdf = Pdf::loadView('BonoRegalo.PDF.recibo', [
             'cliente' => $this->cliente,

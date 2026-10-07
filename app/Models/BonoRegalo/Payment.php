@@ -16,6 +16,14 @@ class Payment extends Model
         'status',
     ];
 
+    // Estados de pago que cuentan como venta efectiva
+    public const ESTADOS_OK = ['approved', 'paid', 'success', 'completed'];
+
+    public function scopeExitosos($query)
+    {
+        return $query->whereIn($this->qualifyColumn('status'), self::ESTADOS_OK);
+    }
+
     // Relación: pago pertenece a un método
     public function method()
     {

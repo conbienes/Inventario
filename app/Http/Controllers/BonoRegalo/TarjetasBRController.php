@@ -2,198 +2,144 @@
 
 namespace App\Http\Controllers\BonoRegalo;
 
+use App\Exports\TarjetasBRExport;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use App\Http\Requests\BonoRegalo\FiltrosRequest;
+use App\Http\Requests\BonoRegalo\ImportarTarjetasRequest;
+use App\Http\Requests\BonoRegalo\TarjetaBonoRequest;
+use App\Imports\TarjetasBRImport;
 use App\Models\BonoRegalo\TarjetaBonoR;
 use Carbon\Carbon;
-use App\Exports\TarjetasBRExport;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Imports\TarjetasBRImport;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class TarjetasBRController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            if (session('modulo_seleccionado') != 3) {
-                abort(403, 'Acceso no autorizado para este módulo');
-            }
-            return $next($request);
-        });
-    }
-
     public function index()
     {
         return view('BonoRegalo.Tarjetas.index');
     }
 
-    public function BuscarTarjeta(Request $request)
+    public function BuscarTarjeta(FiltrosRequest $request)
     {
-        $query = TarjetaBonoR::query();
-
-        if ($request->filled('numero')) {
-            $query->where('numero', 'like', "%{$request->numero}%");
-        }
-
-        if ($request->filled('cedula')) {
-            $query->where('nit', 'like', "%{$request->cedula}%");
-        }
-
-        if ($request->filled('fecha_inicio') && $request->filled('fecha_fin')) {
-            $query->whereBetween('created_at', [
-                Carbon::parse($request->fecha_inicio)->startOfDay(), 
-                Carbon::parse($request->fecha_fin)->endOfDay()
-            ]);
-        } elseif ($request->filled('fecha_inicio')) {
-            $query->where('created_at', '>=', Carbon::parse($request->fecha_inicio)->startOfDay());
-        } elseif ($request->filled('fecha_fin')) {
-            $query->where('created_at', '<=', Carbon::parse($request->fecha_fin)->endOfDay());
-        }
-
-        if (!$request->filled('numero') && !$request->filled('cedula') && 
-            !$request->filled('fecha_inicio') && !$request->filled('fecha_fin')) {
-            $query->whereDate('created_at', now()->toDateString());
-        }
-
+        $hayFiltros = collect($request->only(['numero', 'cedula', 'fecha_inicio', 'fecha_fin']))->filter()->isNotEmpty();
         $validSorts = ['id', 'nit', 'numero', 'valor', 'created_at', 'estado'];
-        $sort = in_array($request->get('sort'), $validSorts) ? $request->get('sort') : 'created_at';
-        $direction = $request->get('direction', 'desc');
 
-        $query->orderBy($sort, $direction);
+        $Tarjetas = TarjetaBonoR::query()
+            ->withExists('itemsFactura as vendida') // para no ofrecer "Editar" en tarjetas vendidas
+            ->when($request->filled('numero'), fn($q) => $q->where('numero', 'like', "%{$request->numero}%"))
+            ->when($request->filled('cedula'), fn($q) => $q->where('nit', 'like', "%{$request->cedula}%"))
+            ->when($request->filled('fecha_inicio'), fn($q) => $q->where('created_at', '>=', Carbon::parse($request->fecha_inicio)->startOfDay()))
+            ->when($request->filled('fecha_fin'), fn($q) => $q->where('created_at', '<=', Carbon::parse($request->fecha_fin)->endOfDay()))
+            ->when(!$hayFiltros, fn($q) => $q->where('created_at', '>=', now()->startOfDay())) // sin filtros: las de hoy
+            ->orderBy(in_array($request->get('sort'), $validSorts, true) ? $request->get('sort') : 'created_at', strtolower($request->get('direction', 'desc')))
+            ->paginate(15)
+            ->appends($request->query());
 
-        $Tarjetas = $query->paginate(15)->appends($request->all());
+        // Totales del inventario en una sola consulta
+        $s = TarjetaBonoR::selectRaw("
+            COUNT(*) AS total,
+            COALESCE(SUM(estado = 'activa'), 0) AS activas,
+            COALESCE(SUM(estado = 'inactiva'), 0) AS inactivas,
+            COALESCE(SUM(valor), 0) AS valor_total
+        ")->first();
 
         $stats = [
-            'total' => TarjetaBonoR::count(),
-            'activas' => TarjetaBonoR::where('estado', 'activa')->count(),
-            'inactivas' => TarjetaBonoR::where('estado', 'inactiva')->count(),
-            'valor_total' => TarjetaBonoR::sum('valor'),
+            'total' => (int) $s->total,
+            'activas' => (int) $s->activas,
+            'inactivas' => (int) $s->inactivas,
+            'valor_total' => $s->valor_total,
         ];
 
         return view('BonoRegalo.Tarjetas.BuscarTarjetas', compact('Tarjetas', 'stats'));
     }
 
-    public function store(Request $request)
+    public function store(TarjetaBonoRequest $request)
     {
-        $validatedData = $request->validate(
-            [
-                'numero' => ['required', 'numeric', 'digits:16', 'unique:tarjetasBonoR,numero'],
-                'nit' => 'required|string|max:20',
-                'valor' => 'required|numeric|min:0',
-                'estado' => 'required|in:activa,inactiva',
-            ],
-            [
-                'numero.required' => 'El número de tarjeta es obligatorio.',
-                'numero.numeric' => 'El número de tarjeta debe contener solo números.',
-                'numero.digits' => 'El número de tarjeta debe tener exactamente 16 dígitos.',
-                'numero.unique' => 'Este número de tarjeta ya está registrado.',
-                'valor.numeric' => 'El valor debe ser un número válido.',
-                'valor.min' => 'El valor no puede ser negativo.',
-                'estado.in' => 'El estado debe ser "activa" o "inactiva".',
-            ],
-        );
-
         try {
-            DB::beginTransaction();
-            $tarjeta = TarjetaBonoR::create($validatedData);
-            DB::commit();
-
-            return redirect()->route('BonoRegalo.BuscarTarjeta')
-                ->with('success', '✅ Tarjeta #' . $tarjeta->numero . ' registrada correctamente');
-
+            $tarjeta = TarjetaBonoR::create($request->validated());
         } catch (\Throwable $e) {
-            DB::rollBack();
             Log::error('Error al guardar tarjeta: ' . TarjetaBonoR::enmascarar($e->getMessage()));
 
-            return redirect()
-                ->back()
+            return back()
                 ->withErrors(['error' => '❌ No se pudo guardar la tarjeta. Intenta de nuevo o contacta a soporte.'])
                 ->withInput();
         }
+
+        return redirect()->route('BonoRegalo.BuscarTarjeta')
+            ->with('success', '✅ Tarjeta #' . $tarjeta->numero . ' registrada correctamente');
     }
 
     public function edit(string $id)
     {
         $tarjeta = TarjetaBonoR::findOrFail($id);
 
-        if ($tarjeta->estaVendida()) {
-            return redirect()->route('BonoRegalo.BuscarTarjeta')
-                ->with('error', 'La tarjeta #' . e($tarjeta->numero) . ' ya fue vendida y no se puede editar.');
+        $permiso = Gate::inspect('update', $tarjeta);
+        if ($permiso->denied()) {
+            return redirect()->route('BonoRegalo.BuscarTarjeta')->with('error', $permiso->message());
         }
 
         return view('BonoRegalo.Tarjetas.editarTarjeta', compact('tarjeta'));
     }
 
-    public function update(Request $request, string $id)
+    public function update(TarjetaBonoRequest $request, string $id)
     {
         $tarjeta = TarjetaBonoR::findOrFail($id);
 
-        if ($tarjeta->estaVendida()) {
-            return redirect()->route('BonoRegalo.BuscarTarjeta')
-                ->with('error', 'La tarjeta #' . e($tarjeta->numero) . ' ya fue vendida y no se puede editar.');
+        $permiso = Gate::inspect('update', $tarjeta);
+        if ($permiso->denied()) {
+            return redirect()->route('BonoRegalo.BuscarTarjeta')->with('error', $permiso->message());
         }
 
-        $validatedData = $request->validate(
-            [
-                'numero' => ['required', 'numeric', 'digits:16', Rule::unique('tarjetasBonoR', 'numero')->ignore($id)],
-                'nit' => 'required|string|max:20',
-                'valor' => 'required|numeric|min:0',
-                'estado' => 'required|in:activa,inactiva',
-            ],
-            [
-                'numero.required' => 'El número de tarjeta es obligatorio.',
-                'numero.numeric' => 'El número de tarjeta debe contener solo números.',
-                'numero.digits' => 'El número de tarjeta debe tener exactamente 16 dígitos.',
-                'numero.unique' => 'Este número de tarjeta ya está registrado.',
-                'valor.numeric' => 'El valor debe ser un número válido.',
-                'valor.min' => 'El valor no puede ser negativo.',
-                'estado.in' => 'El estado debe ser "activa" o "inactiva".',
-            ],
-        );
-
         try {
-            DB::beginTransaction();
-            $tarjeta->update($validatedData);
-            DB::commit();
-
-            return redirect()->route('BonoRegalo.BuscarTarjeta')
-                ->with('success', '✅ Tarjeta #' . $tarjeta->numero . ' actualizada correctamente');
-
+            $tarjeta->update($request->validated());
         } catch (\Throwable $e) {
-            DB::rollBack();
             Log::error('Error al actualizar tarjeta: ' . TarjetaBonoR::enmascarar($e->getMessage()));
 
-            return redirect()
-                ->back()
+            return back()
                 ->withErrors(['error' => '❌ No se pudo actualizar la tarjeta. Intenta de nuevo o contacta a soporte.'])
                 ->withInput();
         }
+
+        return redirect()->route('BonoRegalo.BuscarTarjeta')
+            ->with('success', '✅ Tarjeta #' . $tarjeta->numero . ' actualizada correctamente');
     }
 
-    public function exportarTarjetas(Request $request)
+    public function destroy(string $id)
+    {
+        $tarjeta = TarjetaBonoR::findOrFail($id);
+
+        $permiso = Gate::inspect('delete', $tarjeta);
+        if ($permiso->denied()) {
+            return redirect()->route('BonoRegalo.BuscarTarjeta')->with('error', $permiso->message());
+        }
+
+        try {
+            $tarjeta->delete();
+        } catch (\Throwable $e) {
+            Log::error('Error al eliminar tarjeta: ' . TarjetaBonoR::enmascarar($e->getMessage()));
+
+            return back()->withErrors(['error' => '❌ No se pudo eliminar la tarjeta. Intenta de nuevo o contacta a soporte.']);
+        }
+
+        return redirect()->route('BonoRegalo.BuscarTarjeta')
+            ->with('success', '✅ Tarjeta #' . $tarjeta->numero . ' eliminada correctamente');
+    }
+
+    public function exportarTarjetas(FiltrosRequest $request)
     {
         try {
             return Excel::download(new TarjetasBRExport($request), 'tarjetas_bono_' . date('Y-m-d') . '.xlsx');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Error al exportar tarjetas: ' . TarjetaBonoR::enmascarar($e->getMessage()));
-            return redirect()->back()
-                ->withErrors(['error' => '❌ No se pudo generar la exportación. Intenta de nuevo o contacta a soporte.']);
+
+            return back()->withErrors(['error' => '❌ No se pudo generar la exportación. Intenta de nuevo o contacta a soporte.']);
         }
     }
 
-    public function importarTarjetas(Request $request)
+    public function importarTarjetas(ImportarTarjetasRequest $request)
     {
-        $request->validate([
-            'archivo' => 'required|file|max:2048|mimes:csv,txt,xlsx,xls',
-        ], [
-            'archivo.required' => 'Debes seleccionar un archivo para importar.',
-            'archivo.max' => 'El archivo no debe superar los 2MB.',
-            'archivo.mimes' => 'Solo se permiten archivos .csv, .xlsx o .xls.',
-        ]);
-
         $archivo = $request->file('archivo');
         $extension = strtolower($archivo->getClientOriginalExtension());
         $tipos = ['csv' => \Maatwebsite\Excel\Excel::CSV, 'xlsx' => \Maatwebsite\Excel\Excel::XLSX, 'xls' => \Maatwebsite\Excel\Excel::XLS];
@@ -224,9 +170,8 @@ class TarjetasBRController extends Controller
     }
 
     // Mensaje de resultado de importación en texto plano (la vista lo escapa)
-    private function redirectResultadoImportacion(int $filasProcesadas, int $importados, array $erroresLista, ?int $totalErrores = null)
+    private function redirectResultadoImportacion(int $filasProcesadas, int $importados, array $erroresLista)
     {
-        $totalErrores ??= count($erroresLista);
         $ruta = redirect()->route('BonoRegalo.BuscarTarjeta');
 
         if ($filasProcesadas == 0) {
@@ -239,9 +184,9 @@ class TarjetasBRController extends Controller
             ]));
         }
 
-        if ($totalErrores > 0) {
+        if ($erroresLista) {
             $lineas = [
-                "❌ Se encontraron {$totalErrores} errores en el archivo.",
+                '❌ Se encontraron ' . count($erroresLista) . ' errores en el archivo.',
                 "✅ Se importaron {$importados} tarjetas correctamente.",
                 'Detalles:',
             ];
@@ -264,16 +209,14 @@ class TarjetasBRController extends Controller
 
     public function plantillaTarjetas()
     {
-        $headers = ['numero', 'nit', 'valor', 'estado'];
-
-        $callback = function() use ($headers) {
+        $callback = function () {
             $file = fopen('php://output', 'w');
-            
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, $headers, ';');
-            fputcsv($file, ['4198190002092768', '901344877', '50000', 'activa'], ';');
-            fputcsv($file, ['4198190049432266', '901344877', '50000', 'inactiva'], ';');
-            
+
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM para que Excel lea UTF-8
+            fputcsv($file, ['numero', 'nit', 'valor', 'estado'], ';');
+            // Fila de ejemplo con datos ficticios: si se importa sin cambiar, se rechaza (número inválido)
+            fputcsv($file, ['NUMERO-DE-16-DIGITOS', '900000000', '50000', 'activa'], ';');
+
             fclose($file);
         };
 
@@ -281,63 +224,5 @@ class TarjetasBRController extends Controller
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="plantilla_tarjetas.csv"',
         ]);
-    }
-
-    public function destroy(string $id)
-    {
-        try {
-            DB::beginTransaction();
-            $tarjeta = TarjetaBonoR::findOrFail($id);
-
-            if ($tarjeta->estaVendida()) {
-                DB::rollBack();
-                return redirect()->route('BonoRegalo.BuscarTarjeta')
-                    ->with('error', 'La tarjeta #' . e($tarjeta->numero) . ' ya fue vendida y no se puede eliminar.');
-            }
-
-            $numero = $tarjeta->numero;
-            $tarjeta->delete();
-            DB::commit();
-
-            return redirect()->route('BonoRegalo.BuscarTarjeta')
-                ->with('success', '✅ Tarjeta #' . $numero . ' eliminada correctamente');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Error al eliminar tarjeta: ' . TarjetaBonoR::enmascarar($e->getMessage()));
-
-            return redirect()->back()
-                ->withErrors(['error' => '❌ No se pudo eliminar la tarjeta. Intenta de nuevo o contacta a soporte.']);
-        }
-    }
-
-    public function toggleEstado(Request $request, string $id)
-    {
-        try {
-            $tarjeta = TarjetaBonoR::findOrFail($id);
-
-            if ($tarjeta->estaVendida()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'La tarjeta ya fue vendida y no se puede cambiar de estado.',
-                ], 409);
-            }
-
-            $nuevoEstado = $tarjeta->estado === 'activa' ? 'inactiva' : 'activa';
-            $tarjeta->update(['estado' => $nuevoEstado]);
-
-            return response()->json([
-                'success' => true,
-                'message' => "✅ Tarjeta #{$tarjeta->numero} ahora está {$nuevoEstado}",
-                'estado' => $nuevoEstado
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error al cambiar estado: ' . TarjetaBonoR::enmascarar($e->getMessage()));
-            return response()->json([
-                'success' => false,
-                'message' => '❌ No se pudo cambiar el estado de la tarjeta.'
-            ], 500);
-        }
     }
 }

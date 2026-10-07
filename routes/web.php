@@ -268,74 +268,66 @@ Route::middleware(['auth', 'nivel:1'])
 
 //Route::get('/bc/custom/cliente', [BcSyncController::class, 'crearClienteExt']);
 
-Route::middleware(['auth', 'nivel:3,1|2|3,any']) // Middleware personalizado
+// Bono Regalo. "eq:3" exige que el módulo seleccionado en sesión sea Bono Regalo (3).
+// Permisos del módulo: 1 Administrador, 2 Administrador2, 3 Usuario (cajero), 5 Contabilidad.
+
+// Ventas, clientes e impresión: administradores y cajeros
+Route::middleware(['auth', 'nivel:3,1|2|3,any,eq:3'])
     ->prefix('/BonoRegalo')
     ->name('BonoRegalo.')
     ->group(function () {
-        Route::post('Guardar', [BonoRegaloController::class, 'store'])->name('store');
-        Route::get('{id}/Editar', [BonoRegaloController::class, 'edit'])->name('edit');
-        Route::put('{id}/Actualizar', [BonoRegaloController::class, 'update'])->name('update');
-        Route::get('/ventas/hoy', [BonoRegaloController::class, 'ventasHoy'])->name('ventasHoy');
-        // Rutas adicionales específicas
-        Route::post('Validar', [BonoRegaloController::class, 'validarBono'])->name('validar');
-        Route::get('Reporte', [BonoRegaloController::class, 'generarReporte'])->name('reporte');
-
-        // Clientes Bono Regalo
-        Route::get('Cliente', [ClientesBRController::class, 'Index'])->name('IndexCliente');
+        // Clientes
+        Route::get('Cliente', [ClientesBRController::class, 'index'])->name('IndexCliente');
         Route::get('BuscarCliente', [ClientesBRController::class, 'BuscarCliente'])->name('BuscarCliente');
         Route::post('Cliente', [ClientesBRController::class, 'store'])->name('crearCliente');
         Route::get('Cliente/{id}/Editar', [ClientesBRController::class, 'edit'])->name('editarCliente');
         Route::put('Cliente/{id}/Actualizar', [ClientesBRController::class, 'update'])->name('actualizarCliente');
-        Route::delete('Cliente/{id}', [ClientesBRController::class, 'destroy'])->name('DestroyCliente');
 
-        Route::get('Facturas', [FacturasBRController::class, 'Index'])->name('IndexFacturas');
+        // Ventas (recibos de caja)
+        Route::get('Facturas', [FacturasBRController::class, 'index'])->name('IndexFacturas');
         Route::post('Facturas', [FacturasBRController::class, 'store'])->name('crearFactura');
-        Route::get('/buscarClientes', [FacturasBRController::class, 'buscar'])->name('buscarClientes');
         Route::get('/InformesTarjetas', [FacturasBRController::class, 'informesTarjetas'])->name('informesTarjetas');
         Route::get('/InformesTarjetas/exportar', [FacturasBRController::class, 'exportarExcel'])->name('exportarFacturas');
 
-        Route::get('factura/{id}/detalle', [BonoRegaloController::class, 'detalleFactura'])->name('detalleFactura'); // AJAX -> JSON/HTML
-        Route::get('factura/{id}/print', [BonoRegaloController::class, 'printFactura'])->name('printFactura'); // vista térmica
-        // Opcional: endpoint POST para impresión por servidor si usas escpos-php:
-        Route::post('factura/{id}/print-server', [BonoRegaloController::class, 'printFacturaServer'])->name('printFacturaServer');
+        // Impresión térmica
+        Route::get('factura/{id}/print', [BonoRegaloController::class, 'printFactura'])->name('printFactura');
         Route::get('resumen', [BonoRegaloController::class, 'resumenFactura'])->name('printResumen');
     });
 
-Route::middleware(['auth', 'nivel:3']) // Middleware personalizado
+// Inicio y reporte de ventas: cualquier permiso del módulo
+Route::middleware(['auth', 'nivel:3,,all,eq:3'])
     ->prefix('/BonoRegalo')
     ->name('BonoRegalo.')
     ->group(function () {
         Route::get('Inicio', [BonoRegaloController::class, 'index'])->name('inicio');
         Route::get('/bono-regalo', [BonoRegaloController::class, 'Reportes'])->name('ReporteVentas');
         Route::get('/bono-regalo/ventas/resumen', [BonoRegaloController::class, 'resumen'])->name('ResumenVentas');
-
     });
-    Route::middleware(['auth', 'nivel:3,1|2|5,any'])
+
+// Inventario de tarjetas y contabilidad (envío a BC): administradores y Contabilidad
+Route::middleware(['auth', 'nivel:3,1|2|5,any,eq:3'])
     ->prefix('/BonoRegalo')
     ->name('BonoRegalo.')
     ->group(function () {
-        // ===== TARJETAS BONO REGALO =====
-        Route::get('Tarjeta', [TarjetasBRController::class, 'index'])->name('IndexTarjeta'); // ✅ Cambiado a minúscula
+        // Tarjetas
+        Route::get('Tarjeta', [TarjetasBRController::class, 'index'])->name('IndexTarjeta');
         Route::get('BuscarTarjeta', [TarjetasBRController::class, 'BuscarTarjeta'])->name('BuscarTarjeta');
-
         Route::post('Tarjeta', [TarjetasBRController::class, 'store'])->name('crearTarjeta');
         Route::get('Tarjeta/{id}/Editar', [TarjetasBRController::class, 'edit'])->name('editarTarjeta');
         Route::put('Tarjeta/{id}/Actualizar', [TarjetasBRController::class, 'update'])->name('actualizarTarjeta');
         Route::delete('Tarjeta/{id}', [TarjetasBRController::class, 'destroy'])->name('DestroyTarjeta');
 
-        // ===== IMPORTACIÓN Y EXPORTACIÓN =====
+        // Importación y exportación
         Route::post('tarjetas/importar', [TarjetasBRController::class, 'importarTarjetas'])->name('ImportarTarjeta');
         Route::get('tarjetas/plantilla', [TarjetasBRController::class, 'plantillaTarjetas'])->name('PlantillaTarjetas');
         Route::get('Informes/exportar-tarjetas', [TarjetasBRController::class, 'exportarTarjetas'])->name('ExportarTarjeta');
 
-        // ===== INFORMES Y REPORTES =====
-        Route::get('Informes', [TarjetasBRController::class, 'Informes'])->name('Informes');
+        // Contabilidad y Business Central
         Route::get('Contabilidad', [ReporteVentasController::class, 'Contabilidad'])->name('Contabilidad');
-
-        // ===== SERVICIOS EXTERNOS =====
         Route::post('CargarBC', [ReporteVentasController::class, 'CargarBC'])->name('CargarBC');
         Route::post('CargarClientes', [ReporteVentasController::class, 'CargarClientes'])->name('CargarClientes'); // solo POST: modifica datos en BC
     });
+
 
 //////////////////////////////////////////////////////////////Gestion Documental/////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////Gestion Documental/////////////////////////////////////////////////////

@@ -121,7 +121,8 @@
                                                         data-toggle="tooltip">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
-                                                    <!-- <form action="{{ route('BonoRegalo.DestroyCliente', $cliente->id) }}"
+                                                    {{-- Eliminar cliente: deshabilitado (la ruta no existe; un cliente con facturas no debe borrarse)
+                                                    <form action="#"
                                                           method="POST"
                                                           class="d-inline"
                                                           onsubmit="return confirm('¿Estás seguro de eliminar este cliente?');">
@@ -133,7 +134,7 @@
                                                                 data-toggle="tooltip">
                                                             <i class="fas fa-trash-alt"></i>
                                                         </button>
-                                                    </form>Barra de búsqueda mejorada -->
+                                                    </form> --}}
                                                 </div>
                                             </td>
                                         </tr>

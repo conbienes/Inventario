@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Mail;
 /**
  * Registra una venta de tarjetas Bono Regalo (recibo de caja).
  *
- * Todo o nada: si alguna tarjeta no está disponible o los pagos no cubren el total,
+ * Todo o nada: si alguna tarjeta no está disponible o los pagos no suman exactamente el total,
  * se lanza DomainException y no queda nada guardado (ni consecutivo, ni tarjetas consumidas).
  * El precio de cada tarjeta es siempre su valor en BD, nunca el del formulario.
  */
@@ -51,8 +51,16 @@ class RegistrarVentaBono
             $total = (float) $tarjetas->sum('valor');
             $totalPagos = (float) collect($pagos)->sum(fn($p) => (float) ($p['amount'] ?? 0));
 
+            // Los pagos deben ser exactos: sin faltante ni sobrante (no se registra "cambio")
             if (round($totalPagos, 2) < round($total, 2)) {
                 throw new \DomainException('El total de pagos no cubre el total de la factura.');
+            }
+            if (round($totalPagos, 2) > round($total, 2)) {
+                $fmt = fn($v) => '$' . number_format($v, 0, ',', '.');
+                throw new \DomainException(
+                    "Los pagos ({$fmt($totalPagos)}) superan el total de la factura ({$fmt($total)}). "
+                    . 'Registra el valor exacto: si el cliente recibió cambio, descuéntalo del pago en efectivo.'
+                );
             }
 
             // 2) Consecutivo atómico (se revierte con la transacción si algo falla)

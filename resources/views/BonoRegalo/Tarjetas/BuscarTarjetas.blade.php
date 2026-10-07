@@ -186,9 +186,13 @@
                                                     @endif
                                                 </td>
                                                 <td class="text-center">
-                                                    <a href="{{ route('BonoRegalo.editarTarjeta', $Item->id) }}" class="btn btn-sm btn-light border text-primary hover-shadow transition-all" title="Editar">
-                                                        <i class="fas fa-pen"></i>
-                                                    </a>
+                                                    @if ($Item->vendida)
+                                                        <span class="text-muted small" title="Tarjeta vendida: no se puede editar"><i class="fas fa-lock"></i></span>
+                                                    @else
+                                                        <a href="{{ route('BonoRegalo.editarTarjeta', $Item->id) }}" class="btn btn-sm btn-light border text-primary hover-shadow transition-all" title="Editar">
+                                                            <i class="fas fa-pen"></i>
+                                                        </a>
+                                                    @endif
                                                 </td>
                                             </tr>
                                         @empty

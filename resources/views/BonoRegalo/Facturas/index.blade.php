@@ -558,7 +558,14 @@
                 }
             },
             escapeMarkup: function(markup) {
-                return markup; // Permite HTML en los resultados
+                return markup; // Permite el HTML del botón "Crear Cliente" (mensaje noResults)
+            },
+            // Los nombres de clientes se pintan como TEXTO (no HTML): evita ejecutar código guardado en un nombre
+            templateResult: function(item) {
+                return item.loading ? item.text : $('<span>').text(item.text);
+            },
+            templateSelection: function(item) {
+                return $('<span>').text(item.text);
             },
             ajax: {
                 url: '/Ajax/buscarClientesBR',
@@ -757,6 +764,28 @@
                 if (!methodId) return alert('Seleccione método');
                 if (amount <= 0) return alert('Ingrese un monto válido');
 
+                // Pagos exactos: el monto no puede superar el saldo pendiente (no se registra cambio)
+                let pagado = 0;
+                $('input[name^="payments["][name$="[amount]"]').each(function() {
+                    pagado += num($(this).val());
+                });
+                const pendiente = Math.round((getTotalFactura() - pagado) * 100) / 100;
+                if (pendiente <= 0) {
+                    return Swal.fire({
+                        icon: 'info',
+                        title: 'Factura ya pagada',
+                        text: 'Los pagos registrados ya cubren el total de la factura.'
+                    });
+                }
+                if (amount > pendiente) {
+                    return Swal.fire({
+                        icon: 'warning',
+                        title: 'Monto mayor al saldo',
+                        html: `El pago (${money(amount)}) supera el saldo pendiente (<b>${money(pendiente)}</b>).<br>` +
+                            'Registra el valor exacto: si el cliente recibe cambio, descuéntalo.'
+                    });
+                }
+
                 // Índice para esta nueva fila (0..n-1)
                 const idx = $('#paymentsTable tbody tr').length;
 
@@ -816,19 +845,15 @@
                     });
                 }
 
-                // (Opcional) Si hay sobrepago y el último método NO es efectivo (id=1), bloquear o avisar
-                const change = totalPaid - totalFactura;
-                if (change > 0) {
-                    // if (String(lastMethod) !== '1') {
-                    //   e.preventDefault();
-                    //   return Swal.fire({
-                    //     icon: 'info',
-                    //     title: 'Sobrepago detectado',
-                    //     text: 'El cambio sólo se permite con pagos en efectivo.'
-                    //   });
-                    // }
-                    // O solo avisar:
-                    // Swal.fire({ icon: 'info', title: 'Cambio a devolver', text: `Debes devolver ${money(change)}.` });
+                // Pagos exactos: no se permite sobrepago (p. ej. si se quitó una tarjeta después de registrar el pago)
+                if (Math.round(totalPaid * 100) > Math.round(totalFactura * 100)) {
+                    e.preventDefault();
+                    return Swal.fire({
+                        icon: 'warning',
+                        title: 'Pagos mayores al total',
+                        html: `Los pagos (${money(totalPaid)}) superan el total de la factura (<b>${money(totalFactura)}</b>).<br>` +
+                            'Ajusta los pagos al valor exacto.'
+                    });
                 }
             });
         });
@@ -837,16 +862,24 @@
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('invoiceForm');
 
-            form.addEventListener('submit', function() {
-                Swal.fire({
-                    title: 'Guardando factura...',
-                    html: '<div style="font-size:0.95em; color:#666;">Por favor espera un momento</div>',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
+            form.addEventListener('submit', function(e) {
+                // Si otra validación canceló el envío (p. ej. "Pago incompleto"), no tapar su aviso
+                // con el modal de "Guardando…", que no se puede cerrar y bloquearía la pantalla.
+                // setTimeout: se decide cuando ya corrieron TODOS los manejadores de submit (el orden
+                // entre este listener y el de jQuery no está garantizado).
+                setTimeout(function() {
+                    if (e.defaultPrevented) return;
+
+                    Swal.fire({
+                        title: 'Guardando factura...',
+                        html: '<div style="font-size:0.95em; color:#666;">Por favor espera un momento</div>',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                }, 0);
             });
         });
     </script>

@@ -21,19 +21,22 @@ Schedule::command('queue:work --stop-when-empty --tries=3 --backoff=60 --max-tim
 /**
  * IDs de mail_outbox que ya tienen un job pendiente en la cola,
  * para no encolarlos de nuevo (evita trabajos duplicados).
+ * (Guardado con function_exists: Laravel puede cargar este archivo más de una vez)
  */
-function outboxIdsEnCola(): array
-{
-    return DB::table('jobs')
-        ->where('payload', 'like', '%FacturaBonoMail%')
-        ->pluck('payload')
-        ->map(function ($p) {
-            $cmd = json_decode($p, true)['data']['command'] ?? '';
-            return preg_match('/outboxId";i:(\d+)/', $cmd, $m) ? (int) $m[1] : null;
-        })
-        ->filter()
-        ->flip()
-        ->all();
+if (!function_exists('outboxIdsEnCola')) {
+    function outboxIdsEnCola(): array
+    {
+        return DB::table('jobs')
+            ->where('payload', 'like', '%FacturaBonoMail%')
+            ->pluck('payload')
+            ->map(function ($p) {
+                $cmd = json_decode($p, true)['data']['command'] ?? '';
+                return preg_match('/outboxId";i:(\d+)/', $cmd, $m) ? (int) $m[1] : null;
+            })
+            ->filter()
+            ->flip()
+            ->all();
+    }
 }
 
 // Enviar pendientes a las 5:00 PM y 11:00 PM (hora de Colombia)

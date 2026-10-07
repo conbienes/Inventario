@@ -2,76 +2,32 @@
 
 namespace App\Http\Controllers\BonoRegalo;
 
-use App\Http\Controllers\Controller;
 use App\Actions\BonoRegalo\RegistrarVentaBono;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Http\Request;
-use App\Models\BonoRegalo\TarjetaBonoR;
-use App\Models\BonoRegalo\ClienteBonoR;
-use App\Models\BonoRegalo\CargaBC;
-use App\Models\BonoRegalo\PaymentMethod;
-use Illuminate\Support\Facades\Auth;
 use App\Exports\FacturasBRMultiExport;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\BonoRegalo\FiltrosRequest;
+use App\Http\Requests\BonoRegalo\VentaBonoRequest;
+use App\Models\BonoRegalo\CargaBC;
+use App\Models\BonoRegalo\ClienteBonoR;
+use App\Models\BonoRegalo\PaymentMethod;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
+use Maatwebsite\Excel\Facades\Excel;
 
 class FacturasBRController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            // Verificar que el módulo seleccionado sea Bono Regalo (2)
-            if (session('modulo_seleccionado') != 3) {
-                abort(403, 'Acceso no autorizado para este módulo');
-            }
-            return $next($request);
-        });
-    }
-
     public function index()
     {
-        $tarjetas = TarjetaBonoR::all();
+        // Las tarjetas se buscan por AJAX (buscarTarjetasBR); aquí solo los métodos de pago
         $paymentMethods = PaymentMethod::all();
 
-        return view('BonoRegalo.Facturas.index', compact('tarjetas', 'paymentMethods'));
+        return view('BonoRegalo.Facturas.index', compact('paymentMethods'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function store(VentaBonoRequest $request, RegistrarVentaBono $registrarVenta)
     {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-
-    public function store(Request $request, RegistrarVentaBono $registrarVenta)
-    {
-        $request->validate(
-            [
-                'fecha' => 'required|date',
-                'cliente' => 'required|exists:clientesBonoR,id',
-                'tarjetas' => 'required|array|min:1',
-                'tarjetas.*' => 'integer|distinct|exists:tarjetasBonoR,id',
-                // 'precios' se ignora: el precio siempre es el valor de la tarjeta en BD
-                'precios' => 'nullable|array',
-                'payments' => 'required|array|min:1',
-                'payments.*.method_id' => 'required|integer|exists:payment_methods,id',
-                'payments.*.amount' => 'required|numeric|min:0.01',
-                'payments.*.reference' => 'nullable|string|max:100',
-            ],
-            [
-                'fecha.required' => 'La fecha es obligatoria.',
-                'cliente.required' => 'Debe seleccionar un cliente.',
-                'cliente.exists' => 'El cliente seleccionado no existe.',
-                'tarjetas.required' => 'Debe seleccionar al menos una tarjeta.',
-                'payments.required' => 'Debe registrar al menos un medio de pago.',
-            ],
-        );
-
         try {
             $factura = $registrarVenta->handle(
                 ClienteBonoR::findOrFail($request->cliente),
@@ -93,131 +49,56 @@ class FacturasBRController extends Controller
         }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function informesTarjetas(Request $request)
+    /** Buscar facturas (agrupadas por número). El cajero ve sus ventas; el administrador, todas. */
+    public function informesTarjetas(FiltrosRequest $request)
     {
-        try {
-            // Prefiltro: MIS ventas
-            $base = CargaBC::query();
+        $base = CargaBC::query()
+            ->unless(Gate::allows('bono-regalo.admin'), fn($q) => $q->where('idEmpleado', Auth::id()));
 
-            // Si no hay filtros, mostrar HOY
-            if (!$request->filled('fecha_inicio') && !$request->filled('fecha_fin') && !$request->filled('numero') && !$request->filled('cedula')) {
-                $base->whereDate('fecha', now('America/Bogota')->toDateString());
-            }
+        $hayFiltros = collect($request->only(['fecha_inicio', 'fecha_fin', 'numero', 'cedula']))->filter()->isNotEmpty();
 
-            // Filtros
-            if ($request->filled('numero')) {
-                $base->where('factura', 'like', '%' . $request->numero . '%');
-            }
-            if ($request->filled('cedula')) {
-                $base->where('cedula', 'like', '%' . $request->cedula . '%');
-            }
-            if ($request->filled('fecha_inicio') && $request->filled('fecha_fin')) {
-                $fi = Carbon::parse($request->fecha_inicio)->startOfDay();
-                $ff = Carbon::parse($request->fecha_fin)->endOfDay();
-                $base->whereBetween('fecha', [$fi, $ff]);
-            } elseif ($request->filled('fecha_inicio')) {
-                $fi = Carbon::parse($request->fecha_inicio)->startOfDay();
-                $base->where('fecha', '>=', $fi);
-            } elseif ($request->filled('fecha_fin')) {
-                $ff = Carbon::parse($request->fecha_fin)->endOfDay();
-                $base->where('fecha', '<=', $ff);
-            }
+        // Sin filtros: ventas de hoy
+        $base->when(!$hayFiltros, fn($q) => $q->where('fecha', now()->toDateString()))
+            ->when($request->filled('numero'), fn($q) => $q->where('factura', 'like', '%' . $request->numero . '%'))
+            ->when($request->filled('cedula'), fn($q) => $q->where('cedula', 'like', '%' . $request->cedula . '%'))
+            ->when($request->filled('fecha_inicio'), fn($q) => $q->where('fecha', '>=', Carbon::parse($request->fecha_inicio)->toDateString()))
+            ->when($request->filled('fecha_fin'), fn($q) => $q->where('fecha', '<=', Carbon::parse($request->fecha_fin)->toDateString()));
 
-            // Map de columnas ordenables (usa agregados)
-            $sort = $request->get('sort', 'fecha');
-            $direction = $request->get('direction', 'desc');
+        // Columnas ordenables (sobre los agregados)
+        $sortMap = [
+            'factura' => 'factura',
+            'tarjeta' => 'tarjetas',
+            'fecha' => 'fecha_min',
+            'cedula' => 'cedula_min',
+            'valor_tarjeta' => 'valor_total',
+            'valor_total' => 'valor_total',
+        ];
+        $sortColumn = $sortMap[$request->get('sort', 'fecha')] ?? 'fecha_min';
+        $direction = strtolower($request->get('direction', 'desc'));
 
-            $sortMap = [
-                'factura' => 'factura',
-                'tarjeta' => 'tarjetas', // ordena por el string concatenado
-                'fecha' => 'fecha_min', // tomamos la primera fecha de la factura
-                'cedula' => 'cedula_min',
-                'valor_tarjeta' => 'valor_total', // suma por factura
-                'valor_total' => 'valor_total',
-            ];
-            $sortColumn = $sortMap[$sort] ?? 'fecha_min';
-            $direction = in_array(strtolower($direction), ['asc', 'desc']) ? $direction : 'desc';
-
-            // AGRUPADO por factura:
-            // - tarjetas: GROUP_CONCAT
-            // - fecha_min: MIN(fecha) (para mostrar/ordenar con una fecha representativa)
-            // - cedula_min: MIN(cedula) (evita ONLY_FULL_GROUP_BY)
-            // - valor_total: SUM(valor_tarjeta)
-            $facturas = $base
-                ->selectRaw(
-                    "
+        // Agrupado por factura (MIN/SUM evitan problemas con ONLY_FULL_GROUP_BY)
+        $facturas = $base
+            ->selectRaw("
                 factura,
                 GROUP_CONCAT(tarjeta ORDER BY tarjeta SEPARATOR ', ') AS tarjetas,
-                MIN(fecha)  AS fecha_min,
+                MIN(fecha) AS fecha_min,
                 MIN(cedula) AS cedula_min,
                 SUM(valor_tarjeta) AS valor_total,
-                MIN(id) AS id_ref -- id de referencia para imprimir
-            ",
-                )
-                ->groupBy('factura')
-                ->orderBy($sortColumn, $direction)
-                ->paginate(10)
-                ->appends($request->all());
+                MIN(id) AS id_ref
+            ")
+            ->groupBy('factura')
+            ->orderBy($sortColumn, $direction)
+            ->paginate(10)
+            ->appends($request->query());
 
-            return view('BonoRegalo.Facturas.BuscarFacturas', compact('facturas'));
-        } catch (\Throwable $e) {
-            report($e);
-
-            return back()
-                ->withErrors(['error' => 'Ocurrió un error al buscar las facturas. Revisa los filtros e intenta de nuevo.'])
-                ->withInput();
-        }
+        return view('BonoRegalo.Facturas.BuscarFacturas', compact('facturas'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-
-    public function exportarExcel(Request $request)
+    public function exportarExcel(FiltrosRequest $request)
     {
-        // Lee parámetros de la query (GET)
-        $data = $request->query();
+        $from = $request->input('from', now()->toDateString());
+        $to = $request->input('to', $from);
 
-        // Valida
-        $validated = Validator::make($data, [
-            'from' => ['nullable', 'date'],
-            'to' => ['nullable', 'date', 'after_or_equal:from'],
-        ])->validate();
-
-        // Defaults
-        $from = $validated['from'] ?? now('America/Bogota')->toDateString();
-        $to = $validated['to'] ?? $from;
-
-        // Request "limpio" para pasar al export
-        $exportRequest = new Request([
-            'from' => $from,
-            'to' => $to,
-        ]);
-
-        return Excel::download(new FacturasBRMultiExport($exportRequest), 'facturas_br.xlsx');
-    }
-
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        return Excel::download(new FacturasBRMultiExport(new Request(['from' => $from, 'to' => $to])), 'facturas_br.xlsx');
     }
 }
