@@ -136,7 +136,7 @@
                                     <select id="paymentMethod" class="form-control">
                                         <option value="">Seleccione método</option>
                                         @foreach ($paymentMethods as $method)
-                                            <option value="{{ $method->id }}">{{ $method->name }}</option>
+                                            <option value="{{ $method->id }}" data-tipo="{{ $method->tipo }}">{{ $method->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -151,6 +151,9 @@
                                     </button>
                                 </div>
                             </div>
+                            <small class="text-muted d-block mt-2">
+                                <i class="fas fa-info-circle mr-1"></i>En efectivo registra lo que entregó el cliente: al guardar se muestra el cambio a devolver.
+                            </small>
                         </div>
                     </div>
 
@@ -724,27 +727,38 @@
                 this.value = digits ? numFmt.format(digits) : '';
             });
 
+            // Pesos sin decimales para los avisos ($ 10.000)
+            const pesos = (n) => new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: 'COP',
+                maximumFractionDigits: 0
+            }).format(n || 0);
+
+            const esEfectivo = (tipo) => String(tipo || '').toUpperCase() === 'EFECTIVO';
+
+            // Suma de pagos registrados; con soloEfectivo, solo los de efectivo
+            function sumaPagos(soloEfectivo = false) {
+                let total = 0;
+                $('#paymentsTable tbody tr').each(function() {
+                    if (soloEfectivo && !esEfectivo($(this).data('tipo'))) return;
+                    total += num($(this).find('input[name$="[amount]"]').val());
+                });
+                return Math.round(total * 100) / 100;
+            }
+
             // Muestra total inicial por si ya viene cargado
             $('#totalInvoiceDisplay').text(money(getTotalFactura()));
 
             // ==== Recalcular pagos (muestra restante y cambio) ====
             window.recalcularPagos = function() {
                 const totalFactura = getTotalFactura();
-
-                let totalPaid = 0;
-                // ⬇⬇⬇ selector actualizado para campos indexados [i]
-                $('input[name^="payments["][name$="[amount]"]').each(function() {
-                    totalPaid += num($(this).val());
-                });
-
+                const totalPaid = sumaPagos();
                 const remaining = totalFactura - totalPaid;
                 const change = totalPaid - totalFactura;
 
-                // Displays con formato local
                 $('#paidSum').text(money(totalPaid));
                 $('#remaining').text(money(Math.max(remaining, 0)));
 
-                // (Opcional) fila de cambio si la tienes en el HTML
                 if ($('#changeRow').length) {
                     if (change > 0) {
                         $('#change').text(money(change));
@@ -757,19 +771,16 @@
 
             // ==== Agregar pago ====
             $('#btnAddPayment').on('click', function() {
-                const methodId = $('#paymentMethod').val(); // 1..6
-                const methodTxt = $('#paymentMethod option:selected').text();
+                const methodId = $('#paymentMethod').val();
+                const $opcion = $('#paymentMethod option:selected');
+                const methodTxt = $opcion.text();
+                const tipo = String($opcion.data('tipo') || '');
                 const amount = parsePesos($('#paymentAmount').val());
 
                 if (!methodId) return alert('Seleccione método');
                 if (amount <= 0) return alert('Ingrese un monto válido');
 
-                // Pagos exactos: el monto no puede superar el saldo pendiente (no se registra cambio)
-                let pagado = 0;
-                $('input[name^="payments["][name$="[amount]"]').each(function() {
-                    pagado += num($(this).val());
-                });
-                const pendiente = Math.round((getTotalFactura() - pagado) * 100) / 100;
+                const pendiente = Math.round((getTotalFactura() - sumaPagos()) * 100) / 100;
                 if (pendiente <= 0) {
                     return Swal.fire({
                         icon: 'info',
@@ -777,26 +788,25 @@
                         text: 'Los pagos registrados ya cubren el total de la factura.'
                     });
                 }
-                if (amount > pendiente) {
+                // Solo en efectivo el cliente puede entregar más (se devuelve cambio al guardar)
+                if (amount > pendiente && !esEfectivo(tipo)) {
                     return Swal.fire({
                         icon: 'warning',
                         title: 'Monto mayor al saldo',
                         html: `El pago (${money(amount)}) supera el saldo pendiente (<b>${money(pendiente)}</b>).<br>` +
-                            'Registra el valor exacto: si el cliente recibe cambio, descuéntalo.'
+                            'Transferencias, QR y PSE deben ser por el valor exacto. Solo en efectivo se puede devolver cambio.'
                     });
                 }
 
-                // Índice para esta nueva fila (0..n-1)
                 const idx = $('#paymentsTable tbody tr').length;
-
                 const row = `
-        <tr>
+        <tr data-tipo="${tipo}">
           <td>
             ${methodTxt}
             <input type="hidden" name="payments[${idx}][method_id]" value="${methodId}">
           </td>
           <td class="text-right">
-            ${money(amount)}
+            <span class="monto-txt">${money(amount)}</span>
             <input type="hidden" name="payments[${idx}][amount]" value="${amount.toFixed(2)}">
           </td>
           <td>
@@ -821,20 +831,81 @@
                 window.recalcularPagos();
             });
 
+            // Descuenta el cambio de los pagos en efectivo (del último hacia atrás):
+            // se guarda lo que queda en caja, no el billete recibido
+            function descontarCambio(cambio) {
+                let resta = Math.round(cambio * 100);
+                $($('#paymentsTable tbody tr').get().reverse()).each(function() {
+                    if (resta <= 0 || !esEfectivo($(this).data('tipo'))) return;
+                    const $monto = $(this).find('input[name$="[amount]"]');
+                    const centavos = Math.round(num($monto.val()) * 100);
+                    const quita = Math.min(centavos, resta);
+                    resta -= quita;
+                    if (centavos - quita <= 0) {
+                        $(this).remove();
+                    } else {
+                        $monto.val(((centavos - quita) / 100).toFixed(2));
+                        $(this).find('.monto-txt').text(money((centavos - quita) / 100));
+                    }
+                });
+                window.recalcularPagos();
+            }
+
+            // Ventana de confirmación con el cambio a devolver
+            function confirmarCambio(form, total, pagado, efectivo, cambio) {
+                const otros = Math.round((pagado - efectivo) * 100) / 100;
+                const fila = (etiqueta, valor, estilo = '') =>
+                    `<div style="display:flex;justify-content:space-between;padding:.2rem 0;${estilo}"><span>${etiqueta}</span><span>${valor}</span></div>`;
+                const alerta = cambio >= total ?
+                    `<div style="margin-top:1rem;padding:.6rem .8rem;border-radius:10px;background:#fff3cd;color:#856404;font-size:.9rem;">
+                        <i class="fas fa-exclamation-triangle mr-1"></i> El cambio es igual o mayor al valor de la venta.
+                        Verifica que el monto recibido esté bien escrito.
+                    </div>` : '';
+
+                Swal.fire({
+                    title: '<span style="font-weight:700;color:#343a40;">Cambio a devolver</span>',
+                    html: `
+                        <div style="text-align:center;">
+                            <div style="width:72px;height:72px;margin:0 auto .75rem;border-radius:50%;background:#e8f7ee;display:flex;align-items:center;justify-content:center;">
+                                <i class="fas fa-hand-holding-usd" style="font-size:2rem;color:#28a745;"></i>
+                            </div>
+                            <div style="color:#6c757d;font-size:.95rem;">Entrega al cliente</div>
+                            <div id="swalCambio" style="font-size:2.8rem;font-weight:800;color:#28a745;line-height:1.15;margin:.2rem 0 .9rem;">${pesos(cambio)}</div>
+                            <div style="max-width:320px;margin:0 auto;background:#f8f9fa;border-radius:12px;padding:.8rem 1rem;text-align:left;font-size:.95rem;color:#495057;">
+                                ${fila('Total de la venta', pesos(total))}
+                                ${fila('Recibido en efectivo', pesos(efectivo))}
+                                ${otros > 0 ? fila('Otros medios de pago', pesos(otros)) : ''}
+                                <hr style="margin:.4rem 0;">
+                                ${fila('<b>Cambio</b>', `<b>${pesos(cambio)}</b>`, 'color:#28a745;')}
+                            </div>
+                            ${alerta}
+                            <div style="margin-top:1rem;color:#495057;">¿Deseas guardar la factura?</div>
+                        </div>`,
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fas fa-check mr-1"></i> Sí, guardar',
+                    cancelButtonText: '<i class="fas fa-edit mr-1"></i> No, seguir editando',
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    reverseButtons: true,
+                    focusConfirm: true,
+                    allowOutsideClick: false,
+                    width: 480
+                }).then(function(res) {
+                    if (!res.isConfirmed) return; // "No": vuelve a la pantalla para seguir editando
+                    descontarCambio(cambio);
+                    // Vuelve a enviar: ahora los pagos son exactos y sigue el flujo normal ("Guardando factura...")
+                    if (form.requestSubmit) {
+                        form.requestSubmit();
+                    } else {
+                        form.submit();
+                    }
+                });
+            }
+
             // ==== Validación final ====
             $('#invoiceForm').on('submit', function(e) {
-                const totalFactura = getTotalFactura();
-                let totalPaid = 0,
-                    lastMethod = null;
-
-                $('#paymentsTable tbody tr').each(function() {
-                    // ⬇⬇⬇ selectores actualizados
-                    const amt = num($(this).find('input[name^="payments["][name$="[amount]"]')
-                        .val());
-                    const mtd = $(this).find('input[name^="payments["][name$="[method_id]"]').val();
-                    totalPaid += amt;
-                    lastMethod = mtd; // último agregado
-                });
+                const totalFactura = Math.round(getTotalFactura() * 100) / 100;
+                const totalPaid = sumaPagos();
 
                 if (totalPaid < totalFactura) {
                     e.preventDefault();
@@ -845,16 +916,24 @@
                     });
                 }
 
-                // Pagos exactos: no se permite sobrepago (p. ej. si se quitó una tarjeta después de registrar el pago)
-                if (Math.round(totalPaid * 100) > Math.round(totalFactura * 100)) {
+                const cambio = Math.round((totalPaid - totalFactura) * 100) / 100;
+                if (cambio > 0) {
                     e.preventDefault();
-                    return Swal.fire({
-                        icon: 'warning',
-                        title: 'Pagos mayores al total',
-                        html: `Los pagos (${money(totalPaid)}) superan el total de la factura (<b>${money(totalFactura)}</b>).<br>` +
-                            'Ajusta los pagos al valor exacto.'
-                    });
+                    const efectivo = sumaPagos(true);
+
+                    // El cambio solo se entrega en efectivo: si sobra en transferencia/QR/PSE es un error de digitación
+                    if (cambio > efectivo) {
+                        return Swal.fire({
+                            icon: 'warning',
+                            title: 'Pagos mayores al total',
+                            html: `Los pagos (${money(totalPaid)}) superan el total de la factura (<b>${money(totalFactura)}</b>)` +
+                                ' y el sobrante no está en efectivo.<br>Ajusta los pagos por transferencia, QR o PSE al valor exacto.'
+                        });
+                    }
+
+                    return confirmarCambio(this, totalFactura, totalPaid, efectivo, cambio);
                 }
+                // Sin diferencia: se guarda normal
             });
         });
     </script>
