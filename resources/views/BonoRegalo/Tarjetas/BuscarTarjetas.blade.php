@@ -7,50 +7,55 @@
 
                 {{-- ====== TODOS LOS TIPOS DE ALERTAS ====== --}}
                 @if(session('success'))
-                    <div class="alert alert-success border-0 shadow-sm rounded-3 alert-dismissible fade show d-flex align-items-center" role="alert">
-                        <i class="fas fa-check-circle fa-lg me-3 text-success"></i>
+                    <div class="alert alert-success border-0 shadow-sm alert-dismissible fade show d-flex align-items-center" role="alert">
+                        <i class="fas fa-check-circle fa-lg mr-3 text-success"></i>
                         <div style="white-space: pre-line">{{ session('success') }}</div>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
                     </div>
                 @endif
 
                 @if(session('warning'))
-                    <div class="alert alert-warning border-0 shadow-sm rounded-3 alert-dismissible fade show d-flex align-items-center" role="alert">
-                        <i class="fas fa-exclamation-triangle fa-lg me-3 text-warning"></i>
+                    <div class="alert alert-warning border-0 shadow-sm alert-dismissible fade show d-flex align-items-center" role="alert">
+                        <i class="fas fa-exclamation-triangle fa-lg mr-3 text-warning"></i>
                         <div style="white-space: pre-line">{{ session('warning') }}</div>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
                     </div>
                 @endif
 
                 @if(session('error'))
-                    <div class="alert alert-danger border-0 shadow-sm rounded-3 alert-dismissible fade show d-flex align-items-center" role="alert">
-                        <i class="fas fa-times-circle fa-lg me-3 text-danger"></i>
+                    <div class="alert alert-danger border-0 shadow-sm alert-dismissible fade show d-flex align-items-center" role="alert">
+                        <i class="fas fa-times-circle fa-lg mr-3 text-danger"></i>
                         <div style="white-space: pre-line">{{ session('error') }}</div>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
                     </div>
                 @endif
 
                 @if(session('info'))
-                    <div class="alert alert-info border-0 shadow-sm rounded-3 alert-dismissible fade show d-flex align-items-center" role="alert">
-                        <i class="fas fa-info-circle fa-lg me-3 text-info"></i>
+                    <div class="alert alert-info border-0 shadow-sm alert-dismissible fade show d-flex align-items-center" role="alert">
+                        <i class="fas fa-info-circle fa-lg mr-3 text-info"></i>
                         <div style="white-space: pre-line">{{ session('info') }}</div>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
                     </div>
                 @endif
 
                 @if($errors->any())
-                    <div class="alert alert-danger border-0 shadow-sm rounded-3 alert-dismissible fade show" role="alert">
+                    <div class="alert alert-danger border-0 shadow-sm alert-dismissible fade show" role="alert">
                         <div class="d-flex align-items-center mb-2">
-                            <i class="fas fa-exclamation-triangle fa-lg me-2 text-danger"></i>
-                            <h6 class="mb-0 fw-bold">Por favor, corrige los siguientes errores:</h6>
+                            <i class="fas fa-exclamation-triangle fa-lg mr-2 text-danger"></i>
+                            <h6 class="mb-0 font-weight-bold">Por favor, corrige los siguientes errores:</h6>
                         </div>
                         <ul class="mb-0 mt-1">
                             @foreach ($errors->all() as $error)
                                 <li>{{ $error }}</li>
                             @endforeach
                         </ul>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
                     </div>
+                @endif
+
+                {{-- ====== RESULTADO DE IMPORTACIÓN ====== --}}
+                @if (session('importacion'))
+                    @include('BonoRegalo.Tarjetas.partials._resultado_importacion', ['imp' => session('importacion')])
                 @endif
 
                 {{-- Tarjeta Principal --}}

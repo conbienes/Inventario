@@ -149,8 +149,11 @@ class TarjetasBRController extends Controller
         }
 
         try {
-            $delimitador = $extension === 'csv' ? TarjetasBRImport::detectarDelimitador($archivo->getRealPath()) : ';';
-            $import = new TarjetasBRImport($delimitador);
+            $esCsv = $extension === 'csv';
+            $import = new TarjetasBRImport(
+                $esCsv ? TarjetasBRImport::detectarDelimitador($archivo->getRealPath()) : ';',
+                $esCsv ? TarjetasBRImport::detectarCodificacion($archivo->getRealPath()) : 'UTF-8',
+            );
             Excel::import($import, $archivo, null, $tipos[$extension]);
 
             Log::info('Importación de tarjetas Bono Regalo', [
@@ -161,7 +164,7 @@ class TarjetasBRController extends Controller
                 'errores' => array_map([TarjetaBonoR::class, 'enmascarar'], $import->getErroresLista()),
             ]);
 
-            return $this->redirectResultadoImportacion($import->getFilasProcesadas(), $import->getImportados(), $import->getErroresLista());
+            return $this->redirectResultadoImportacion($import, $archivo->getClientOriginalName());
         } catch (\Throwable $e) {
             Log::error('Error al importar tarjetas: ' . TarjetaBonoR::enmascarar($e->getMessage()));
 
@@ -169,42 +172,31 @@ class TarjetasBRController extends Controller
         }
     }
 
-    // Mensaje de resultado de importación en texto plano (la vista lo escapa)
-    private function redirectResultadoImportacion(int $filasProcesadas, int $importados, array $erroresLista)
+    // Resumen de la importación para el panel de resultados de la vista (datos, no HTML)
+    private function redirectResultadoImportacion(TarjetasBRImport $import, string $archivo)
     {
-        $ruta = redirect()->route('BonoRegalo.BuscarTarjeta');
+        $errores = $import->getErrores();
+        $importadas = $import->getImportados();
+        $faltan = $import->getColumnasFaltantes();
 
-        if ($filasProcesadas == 0) {
-            return $ruta->with('warning', implode("\n", [
-                '⚠️ El archivo fue procesado pero no se encontraron datos.',
-                'Posibles causas:',
-                '• Los encabezados no coinciden: deben ser numero, nit, valor, estado',
-                '• El archivo está vacío o solo tiene encabezados',
-                '• El separador no es punto y coma (;) o coma (,)',
-            ]));
-        }
+        $estado = match (true) {
+            (bool) $faltan => 'formato',
+            $import->getFilasProcesadas() === 0 => 'vacio',
+            !$errores => 'ok',
+            $importadas > 0 => 'parcial',
+            default => 'error',
+        };
 
-        if ($erroresLista) {
-            $lineas = [
-                '❌ Se encontraron ' . count($erroresLista) . ' errores en el archivo.',
-                "✅ Se importaron {$importados} tarjetas correctamente.",
-                'Detalles:',
-            ];
-            foreach (array_slice($erroresLista, 0, 10) as $error) {
-                $lineas[] = '• ' . $error;
-            }
-            if (count($erroresLista) > 10) {
-                $lineas[] = '… y ' . (count($erroresLista) - 10) . ' errores más.';
-            }
-
-            return $ruta->with('error', implode("\n", $lineas));
-        }
-
-        if ($importados > 0) {
-            return $ruta->with('success', "🎉 Se importaron {$importados} tarjetas correctamente, sin errores.");
-        }
-
-        return $ruta->with('info', 'El archivo no contenía datos para importar.');
+        return redirect()->route('BonoRegalo.BuscarTarjeta')->with('importacion', [
+            'estado' => $estado,
+            'archivo' => $archivo,
+            'filas' => $import->getFilasProcesadas(),
+            'importadas' => $importadas,
+            'con_error' => count($errores),
+            'errores' => array_slice($errores, 0, 300), // límite para no inflar la sesión
+            'columnas_faltantes' => $faltan,
+            'encabezados' => $import->getEncabezados(),
+        ]);
     }
 
     public function plantillaTarjetas()

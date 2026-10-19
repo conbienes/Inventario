@@ -24,15 +24,18 @@ class TarjetasBRImport extends StringValueBinder implements ToCollection, WithHe
 {
     private int $importados = 0;
     private int $filasProcesadas = 0;
-    private array $erroresLista = [];
+    /** @var array<int, array{fila: ?int, tarjeta: ?string, mensaje: string}> */
+    private array $errores = [];
+    private array $columnasFaltantes = [];
+    private array $encabezados = [];
 
-    public function __construct(private string $delimitadorCsv = ';')
+    public function __construct(private string $delimitadorCsv = ';', private string $codificacion = 'UTF-8')
     {
     }
 
     public function getCsvSettings(): array
     {
-        return ['delimiter' => $this->delimitadorCsv, 'input_encoding' => 'UTF-8'];
+        return ['delimiter' => $this->delimitadorCsv, 'input_encoding' => $this->codificacion];
     }
 
     /** Detecta el separador mirando la línea de encabezados del CSV */
@@ -54,14 +57,26 @@ class TarjetasBRImport extends StringValueBinder implements ToCollection, WithHe
     {
         $validas = [];
 
+        // Qué columna del archivo es cada campo (acepta "Número de tarjeta", "No. tarjeta", " valor ", etc.)
+        $encabezados = array_keys($rows->first()?->toArray() ?? []);
+        $cols = self::resolverColumnas($encabezados);
+        $faltan = array_keys(array_filter($cols, fn($c) => $c === null));
+        if ($rows->isNotEmpty() && $faltan) {
+            $this->filasProcesadas = $rows->count();
+            $this->columnasFaltantes = $faltan;
+            $this->encabezados = array_map(fn($h) => str_replace('_', ' ', (string) $h), $encabezados);
+            return;
+        }
+        $campo = fn($row, string $c) => $row[$cols[$c]] ?? null;
+
         foreach ($rows as $i => $row) {
             $fila = $i + 2; // fila 1 = encabezados
 
-            $numeroCrudo = $this->valor($row, ['numero', 'num', 'tarjeta']);
+            $numeroCrudo = $campo($row, 'numero');
             $numero = $this->numeroTarjeta($numeroCrudo);
-            $nit = trim((string) $this->valor($row, ['nit', 'cedula']));
-            $valorOriginal = $this->valor($row, ['valor', 'monto']);
-            $estado = strtolower(trim((string) $this->valor($row, ['estado', 'status'])));
+            $nit = trim((string) $campo($row, 'nit'));
+            $valorOriginal = $campo($row, 'valor');
+            $estado = strtolower(trim((string) $campo($row, 'estado')));
 
             // Fila completamente vacía: se ignora
             if ($numero === '' && $nit === '' && trim((string) $valorOriginal) === '' && $estado === '') {
@@ -71,20 +86,25 @@ class TarjetasBRImport extends StringValueBinder implements ToCollection, WithHe
             $this->filasProcesadas++;
             $valor = TarjetaBonoR::parsearValor($valorOriginal);
 
+            $valorTxt = trim((string) $valorOriginal);
             $error = match (true) {
                 // Excel guarda los números con 15 dígitos significativos: un número de tarjeta en celda numérica ya viene alterado
-                is_int($numeroCrudo) || is_float($numeroCrudo) => "Número de tarjeta en celda numérica de Excel (pierde dígitos). Formatea la columna numero como Texto y vuelve a escribirlo",
-                !preg_match('/^\d{16}$/', $numero) => "Número '{$numero}' inválido: debe tener exactamente 16 dígitos",
-                $nit === '' => "NIT vacío para tarjeta {$numero}",
-                mb_strlen($nit) > 20 => "NIT demasiado largo para tarjeta {$numero}",
-                $valor === null || $valor <= 0 => "Valor '" . trim((string) $valorOriginal) . "' no es válido (debe ser mayor a 0) para tarjeta {$numero}",
-                !in_array($estado, ['activa', 'inactiva', 'activo', 'inactivo'], true) => "Estado '{$estado}' no válido para tarjeta {$numero}. Debe ser: activa o inactiva",
-                isset($validas[$numero]) => "Tarjeta {$numero} repetida dentro del archivo",
+                is_int($numeroCrudo) || is_float($numeroCrudo) => 'El número está en una celda numérica de Excel y pierde dígitos. Cambia la columna a formato Texto.',
+                $numero === '' => 'Falta el número de tarjeta.',
+                !ctype_digit($numero) => 'El número de tarjeta solo puede tener dígitos.',
+                strlen($numero) !== 16 => 'El número debe tener 16 dígitos (tiene ' . strlen($numero) . ').',
+                $nit === '' => 'Falta el NIT.',
+                mb_strlen($nit) > 20 => 'El NIT tiene más de 20 caracteres.',
+                $valorTxt === '' => 'Falta el valor.',
+                $valor === null || $valor <= 0 => "El valor «{$valorTxt}» no es válido: debe ser un número mayor a 0.",
+                $estado === '' => 'Falta el estado.',
+                !in_array($estado, ['activa', 'inactiva', 'activo', 'inactivo'], true) => "El estado «{$estado}» no es válido: usa activa o inactiva.",
+                isset($validas[$numero]) => 'La tarjeta está repetida en el archivo.',
                 default => null,
             };
 
             if ($error) {
-                $this->erroresLista[] = "Fila {$fila}: {$error}";
+                $this->errores[] = ['fila' => $fila, 'tarjeta' => $numero !== '' ? $numero : null, 'mensaje' => $error];
                 continue;
             }
 
@@ -101,7 +121,7 @@ class TarjetasBRImport extends StringValueBinder implements ToCollection, WithHe
         $existentes = TarjetaBonoR::whereIn('numero', array_keys($validas))->pluck('numero')->flip();
         foreach ($validas as $numero => $t) {
             if ($existentes->has($numero)) {
-                $this->erroresLista[] = "Fila {$t['fila']}: Tarjeta {$numero} ya existe";
+                $this->errores[] = ['fila' => $t['fila'], 'tarjeta' => (string) $numero, 'mensaje' => 'La tarjeta ya está registrada en el sistema.'];
                 unset($validas[$numero]);
             }
         }
@@ -139,16 +159,58 @@ class TarjetasBRImport extends StringValueBinder implements ToCollection, WithHe
         return preg_replace('/\s+/', '', trim((string) $v));
     }
 
-    /** Valor de la primera columna que exista entre los nombres aceptados (encabezados ya normalizados) */
-    private function valor($row, array $claves)
+    /** Codificación del CSV: UTF-8 o, si no es válido, ANSI (Windows-1252, como lo guarda Excel en español) */
+    public static function detectarCodificacion(string $ruta): string
     {
-        foreach ($claves as $k) {
-            if (isset($row[$k]) && $row[$k] !== '') {
-                return $row[$k];
+        return mb_check_encoding((string) file_get_contents($ruta), 'UTF-8') ? 'UTF-8' : 'Windows-1252';
+    }
+
+    /**
+     * Relaciona cada campo (numero, nit, valor, estado) con un encabezado del archivo.
+     * Compara sin tildes ni símbolos, en tres pasadas (igual, empieza por, contiene) para que
+     * "valor_tarjeta" sea valor y "numero_de_tarjeta" sea numero.
+     *
+     * @return array<string, string|int|null> campo => encabezado (null si no se encontró)
+     */
+    public static function resolverColumnas(array $encabezados): array
+    {
+        $norm = fn($t) => preg_replace('/[^a-z]/', '', strtolower(\Illuminate\Support\Str::ascii((string) $t)));
+        $claves = [
+            'numero' => ['igual' => ['numero', 'num', 'no', 'tarjeta', 'numerotarjeta'], 'empieza' => ['numero', 'nmero', 'num'], 'contiene' => ['tarjeta']],
+            'nit' => ['igual' => ['nit', 'cedula', 'documento'], 'empieza' => ['nit', 'cedula', 'documento'], 'contiene' => ['nit']],
+            'valor' => ['igual' => ['valor', 'monto', 'precio'], 'empieza' => ['valor', 'monto', 'precio'], 'contiene' => ['valor']],
+            'estado' => ['igual' => ['estado', 'status'], 'empieza' => ['estado', 'status'], 'contiene' => ['estado']],
+        ];
+
+        $cols = array_fill_keys(array_keys($claves), null);
+        $usados = [];
+        foreach (['igual', 'empieza', 'contiene'] as $pasada) {
+            foreach ($claves as $campo => $reglas) {
+                if ($cols[$campo] !== null) {
+                    continue;
+                }
+                foreach ($encabezados as $h) {
+                    $n = $norm($h);
+                    if ($n === '' || in_array($h, $usados, true)) {
+                        continue;
+                    }
+                    foreach ($reglas[$pasada] as $k) {
+                        $coincide = match ($pasada) {
+                            'igual' => $n === $k,
+                            'empieza' => str_starts_with($n, $k),
+                            'contiene' => str_contains($n, $k),
+                        };
+                        if ($coincide) {
+                            $cols[$campo] = $h;
+                            $usados[] = $h;
+                            continue 3;
+                        }
+                    }
+                }
             }
         }
 
-        return null;
+        return $cols;
     }
 
     public function getImportados(): int
@@ -156,14 +218,33 @@ class TarjetasBRImport extends StringValueBinder implements ToCollection, WithHe
         return $this->importados;
     }
 
-    public function getErrores(): int
+    /** Errores por fila, ordenados por número de fila (para mostrarlos en pantalla) */
+    public function getErrores(): array
     {
-        return count($this->erroresLista);
+        return collect($this->errores)->sortBy('fila')->values()->all();
     }
 
+    /** Errores en texto plano (para el log) */
     public function getErroresLista(): array
     {
-        return $this->erroresLista;
+        $lista = array_map(fn($e) => "Fila {$e['fila']}: " . ($e['tarjeta'] ? "{$e['tarjeta']} — " : '') . $e['mensaje'], $this->getErrores());
+        if ($this->columnasFaltantes) {
+            array_unshift($lista, 'Faltan columnas: ' . implode(', ', $this->columnasFaltantes) . ' (encabezados: ' . implode(', ', $this->encabezados) . ')');
+        }
+
+        return $lista;
+    }
+
+    /** Columnas obligatorias que no se encontraron en el archivo */
+    public function getColumnasFaltantes(): array
+    {
+        return $this->columnasFaltantes;
+    }
+
+    /** Encabezados que trae el archivo (para ayudar a corregirlo) */
+    public function getEncabezados(): array
+    {
+        return $this->encabezados;
     }
 
     public function getFilasProcesadas(): int
