@@ -51,7 +51,10 @@
   {{-- Info general --}}
   <div>
     <div><strong>Resumen de Ventas</strong></div>
-    <div class="small">Usuario: {{ $userName }}</div>
+    <div class="small">Ventas de: {{ $userName }}</div>
+    @isset($impresoPor)
+      <div class="small">Impreso por: {{ $impresoPor }}</div>
+    @endisset
     <div class="small">Rango: {{ $fromDT->toDateString() }} a {{ $toDT->toDateString() }}</div>
     <div class="small">Emitido: {{ now()->format('Y-m-d H:i') }}</div>
   </div>

@@ -160,15 +160,13 @@ class BonoRegaloController extends Controller
         ]);
     }
 
-    /** JSON: lo recaudado por el usuario logueado en el rango, por método de pago */
+    /** JSON: lo recaudado en el rango por TODOS los usuarios, por método de pago */
     public function resumen(FiltrosRequest $request)
     {
-        $userId = (int) auth()->id();
         [$desde, $hasta] = $this->rango($request);
 
         $base = Payment::exitosos()
-            ->whereBetween('created_at', [$desde, $hasta])
-            ->whereHas('invoice', fn($q) => $q->where('usuario_id', $userId));
+            ->whereBetween('created_at', [$desde, $hasta]);
 
         $row = (clone $base)->selectRaw('COALESCE(SUM(amount),0) as total, COUNT(*) as n')->first();
 
@@ -188,7 +186,7 @@ class BonoRegaloController extends Controller
             ->values();
 
         return response()->json([
-            'user_id' => $userId,
+            'alcance' => 'todos', // ventas de todos los usuarios
             'from' => $desde->toDateString(),
             'to' => $hasta->toDateString(),
             'total' => (float) ($row->total ?? 0),
@@ -198,7 +196,7 @@ class BonoRegaloController extends Controller
         ]);
     }
 
-    /** Cierre de caja del usuario logueado en impresión térmica */
+    /** Resumen de ventas del rango (TODOS los usuarios) en impresión térmica */
     public function resumenFactura(FiltrosRequest $request)
     {
         $user = auth()->user();
@@ -210,7 +208,6 @@ class BonoRegaloController extends Controller
                 'items.tarjeta:id,numero,valor',
                 'payments' => fn($q) => $q->exitosos()->with('method:id,name'),
             ])
-            ->where('usuario_id', $user->id)
             ->whereBetween('fecha', [$desde->toDateString(), $hasta->toDateString()])
             ->orderBy('fecha')
             ->get();
@@ -234,7 +231,8 @@ class BonoRegaloController extends Controller
         return view('BonoRegalo.print.print_resumen_termico', [
             'Wmm' => (int) $request->input('w', 76), // ancho mm (CSS @page), validado 48..120
             'empresa' => ['nombre' => $empresa['nombre'], 'dir' => $empresa['direccion'], 'tel' => $empresa['telefono']],
-            'userName' => $user->nombre ?? ($user->name ?? $user->email),
+            'userName' => 'Todos los usuarios',
+            'impresoPor' => $user->nombre ?? ($user->name ?? $user->email),
             'fromDT' => $desde,
             'toDT' => $hasta,
             'tarjetas' => $tarjetas->all(),
