@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Inventario;
 
 use Illuminate\Http\Request;
+use App\Services\Inventario\FiltrosInventario;
 use App\Models\Inventario\Division;
 use App\Models\Inventario\Producto;
 use App\Models\Inventario\Almacen;
@@ -34,39 +35,15 @@ class InventarioController extends Controller
     {
         if (Auth::check()) {
             $id = Crypt::decrypt($id);
-            $buscar = strtoupper(trim($request->get('texto')));
             $Division = Division::findOrFail($id);
+            divisionInventarioActual((int) $id);
 
-            if ($buscar != '') {
-                $Inventarios = DB::table('Inventario')
-                    ->join('Producto as p', 'p.Id', '=', 'Inventario.IdProducto')
-                    ->join('Divisiones as d', 'd.Id', '=', 'Inventario.IdDivisiones')
-                    ->join('Almacen as a', 'a.Id', '=', 'Inventario.IdAlmacen')
-                    ->join('categoria_inventario as c', 'c.Id', '=', 'Inventario.IdCategoria')
-                    ->select('Inventario.Id', 'Inventario.Cantidades', 'Inventario.CantidadMin', 'Inventario.CantidadMax', 'p.Nombre as Producto', 'd.Nombre as Division', 'a.Nombre as Almacen', 'c.Nombre as Categoria', 'p.Codigo', 'Inventario.Estanteria', 'Inventario.Entrepano', 'Inventario.Gaveta')
-                    ->where('d.Id', '=', $id)
-                    ->where('p.Nombre', 'like', '%' . $buscar . '%')
-                    ->OrderBy('Inventario.Id')
-                    ->paginate(20);
+            $filtros = new FiltrosInventario((int) $id);
+            $consulta = $filtros->aplicar($filtros->consulta(), $request);
+            $Inventarios = $filtros->ordenar($consulta, $request)->paginate(20)->withQueryString();
+            $opciones = $filtros->opciones();
 
-                return view('Inventario.Inventarios.ConsultarInventario', compact('Inventarios', 'Division'));
-            } else {
-                $Inventarios = DB::table('Inventario')->join('Producto as p', 'p.Id', '=', 'Inventario.IdProducto')->join('Divisiones as d', 'd.Id', '=', 'Inventario.IdDivisiones')->join('Almacen as a', 'a.Id', '=', 'Inventario.IdAlmacen')->join('categoria_inventario as c', 'c.Id', '=', 'Inventario.IdCategoria')->select('Inventario.Id', 'Inventario.Cantidades', 'Inventario.CantidadMin', 'Inventario.CantidadMax', 'p.Nombre as Producto', 'd.Nombre as Division', 'a.Nombre as Almacen', 'c.Nombre as Categoria', 'p.Codigo', 'Inventario.Estanteria', 'Inventario.Entrepano', 'Inventario.Gaveta')->where('d.Id', '=', $id)->OrderBy('Inventario.Id')->paginate(20);
-
-                return view('Inventario.Inventarios.ConsultarInventario', compact('Inventarios', 'Division'));
-            }
-        } else {
-            return redirect('/');
-        }
-    }
-
-    public function editar($Inicio)
-    {
-        if (Auth::check()) {
-            $id = Crypt::decrypt($Inicio);
-            $Inventario = Inventario::findOrFail($id);
-
-            return view('Inventario.Inventarios.EditarInventario', compact('Inventario'));
+            return view('Inventario.Inventarios.ConsultarInventario', compact('Inventarios', 'Division', 'opciones'));
         } else {
             return redirect('/');
         }
@@ -97,9 +74,16 @@ class InventarioController extends Controller
     public function Inicio()
     {
         if ((Auth::check() && auth()->user()->id_tipoempleado == 1) || auth()->user()->id_tipoempleado == 3) {
-            $Division = DB::table('divisiones')->get();
+            // Va directo a la empresa con la que se está trabajando; se cambia desde el selector de la vista.
+            $division = divisionInventarioActual();
+            if ($division === null) {
+                $Division = collect();
+                return view('Inventario.Inventarios.Inicio', compact('Division'));
+            }
 
-            return view('Inventario.Inventarios.Inicio', compact('Division'));
+            session()->reflash(); // conserva los mensajes de éxito/error de la acción anterior
+
+            return redirect()->route('Consultar_Inventario', ['id' => Crypt::encrypt($division)]);
         } else {
             return redirect('/');
         }
@@ -157,7 +141,7 @@ class InventarioController extends Controller
                 'CantidadMax' => 'required|numeric',
                 'Producto' => 'required|numeric',
                 'Division' => 'required|numeric',
-                'Division' => 'required|numeric',
+                'Almacen' => 'required|numeric',
                 'Categoria' => 'required|numeric',
                 'Estanteria' => 'required',
                 'Entrepaño' => 'required',
@@ -171,12 +155,12 @@ class InventarioController extends Controller
                     Session::flash('succes1', 'El producto ya existe en el inventario con el codigo ' . $item->Id . ' ');
                 }
 
-                return Redirect::to('/Inventario');
+                return redirect()->route('Inventario');
             } else {
                 $save = new Inventario();
                 $save->Cantidades = $request['Cantidades'];
-                $save->CantidadMin = $request['CantidadMax'];
-                $save->CantidadMax = $request['CantidadMin'];
+                $save->CantidadMin = $request['CantidadMin'];
+                $save->CantidadMax = $request['CantidadMax'];
                 $save->IdProducto = $request['Producto'];
                 $save->IdDivisiones = $request['Division'];
                 $save->Estanteria = $request['Estanteria'];
@@ -190,7 +174,7 @@ class InventarioController extends Controller
 
                 Session::flash('succes', 'Se creo el producto con el Codigo ' . $save->id . ' ');
 
-                return Redirect::to('/Inventario');
+                return redirect()->route('Inventario');
             }
         } else {
             return redirect('/');

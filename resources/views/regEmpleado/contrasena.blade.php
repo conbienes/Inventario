@@ -1,301 +1,164 @@
 @extends("theme.$theme.layout")
 
 @section('content')
+    @include('regEmpleado.partials.estilos')
+    @php
+        $rutaVolver = session('modulo_seleccionado') == 3 ? route('BonoRegalo.inicio') : route('InicioInventario');
+    @endphp
 
-    <!DOCTYPE html>
-    <html lang="es">
-
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Cambiar Contraseña</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <style>
-            :root {
-                --primary-color: #4e73df;
-                --secondary-color: #6f42c1;
-                --success-color: #1cc88a;
-                --danger-color: #e74a3b;
-                --light-bg: #f8f9fc;
-            }
-
-            body {
-                background-color: var(--light-bg);
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }
-
-            .password-container {
-                max-width: 500px;
-                margin: 2rem auto;
-                box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-                border-radius: 0.75rem;
-                overflow: hidden;
-            }
-
-            .card-header {
-                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-                color: white;
-                font-weight: 600;
-                text-align: center;
-                padding: 1.2rem;
-            }
-
-            .card-body {
-                padding: 2rem;
-            }
-
-            .form-control:focus {
-                border-color: var(--primary-color);
-                box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
-            }
-
-            .password-toggle {
-                cursor: pointer;
-                position: absolute;
-                right: 15px;
-                top: 50%;
-                transform: translateY(-50%);
-                color: #6c757d;
-            }
-
-            .password-input-container {
-                position: relative;
-            }
-
-            .btn-primary {
-                background-color: var(--primary-color);
-                border-color: var(--primary-color);
-                padding: 0.5rem 1.5rem;
-                font-weight: 500;
-                transition: all 0.3s;
-            }
-
-            .btn-primary:hover {
-                background-color: var(--secondary-color);
-                border-color: var(--secondary-color);
-                transform: translateY(-2px);
-            }
-
-            .btn-outline-secondary {
-                padding: 0.5rem 1.5rem;
-                font-weight: 500;
-                transition: all 0.3s;
-            }
-
-            .btn-outline-secondary:hover {
-                transform: translateY(-2px);
-            }
-
-            .alert {
-                border: none;
-                border-radius: 0.5rem;
-                padding: 1rem;
-            }
-
-            .alert-danger {
-                background-color: #f8d7da;
-                color: #721c24;
-            }
-
-            .password-strength {
-                height: 5px;
-                margin-top: 5px;
-                border-radius: 2.5px;
-                background-color: #e9ecef;
-            }
-
-            .password-strength-bar {
-                height: 100%;
-                border-radius: 2.5px;
-                width: 0;
-                transition: width 0.3s;
-            }
-
-            .password-requirements {
-                font-size: 0.8rem;
-                color: #6c757d;
-                margin-top: 0.5rem;
-            }
-
-            .action-buttons {
-                display: flex;
-                justify-content: center;
-                gap: 1rem;
-                margin-top: 2rem;
-            }
-        </style>
-    </head>
-
-    <body>
-        <div class="container my-5">
-            <div class="password-container card">
-                <div class="card-header">
-                    <h3 class="card-title mb-0"><i class="fas fa-key me-2"></i>{{ __('Cambiar Contraseña') }}</h3>
-                </div>
-
-                @if ($errors->any())
-                    <div class="alert alert-danger alert-dismissible mx-3 mt-3">
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Error</h6>
-                        <ul class="mb-0 ps-3">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
+    <div class="emp-page container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-10 col-lg-6">
+                <div class="card card-primary card-outline">
+                    <div class="card-header">
+                        <h3 class="card-title emp-titulo">
+                            <i class="fas fa-key mr-2"></i>Cambiar contraseña
+                        </h3>
+                        <div class="emp-ayuda mt-1">Cambie su propia contraseña de acceso.</div>
                     </div>
-                @endif
 
-                <form method="POST" action="{{ route('actualizar_contrasena', ['id' => $empleado->id]) }}"
-                    id="passwordForm">
-                    @csrf @method('put')
-                    <div class="card-body">
-                        <div class="mb-4">
-                            <label for="password" class="form-label">{{ __('Nueva Contraseña') }}</label>
-                            <div class="password-input-container">
-                                <input id="password" type="password"
-                                    class="form-control @error('password') is-invalid @enderror" name="password"
-                                    autocomplete="new-password" required>
-                                <span class="password-toggle" id="passwordToggle">
-                                    <i class="fas fa-eye"></i>
-                                </span>
+                    @if ($errors->any())
+                        <div class="alert alert-danger mx-3 mt-3 mb-0" role="alert">
+                            <h6 class="font-weight-bold"><i class="fas fa-exclamation-triangle mr-1"></i>No se pudo cambiar la contraseña</h6>
+                            <ul class="mb-0 pl-3">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <form method="POST" action="{{ route('actualizar_contrasena', ['id' => $empleado->id]) }}" id="formContrasena">
+                        @csrf
+                        @method('PUT')
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="current_password" class="font-weight-bold">Contraseña actual</label>
+                                <input id="current_password" type="password"
+                                    class="form-control @error('current_password') is-invalid @enderror"
+                                    name="current_password" autocomplete="current-password" required>
+                                @error('current_password')
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
                             </div>
-                            <div class="password-strength">
-                                <div class="password-strength-bar" id="passwordStrengthBar"></div>
+
+                            <div class="form-group">
+                                <label for="password" class="font-weight-bold">Nueva contraseña</label>
+                                <div class="input-group">
+                                    <input id="password" type="password"
+                                        class="form-control @error('password') is-invalid @enderror" name="password"
+                                        autocomplete="new-password" required aria-describedby="ayudaPassword">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary js-mostrar" type="button"
+                                            data-destino="password" aria-label="Mostrar u ocultar la contraseña">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="emp-fuerza" aria-hidden="true">
+                                    <div class="emp-fuerza-barra" id="fuerzaBarra"></div>
+                                </div>
+                                @error('password')
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
+                                <small id="ayudaPassword" class="emp-ayuda d-block mt-2">
+                                    Mínimo 8 caracteres, con una mayúscula, un número y un carácter especial.
+                                </small>
                             </div>
-                            <div class="password-requirements">
-                                <small>La contraseña debe tener al menos 8 caracteres, incluir una mayúscula, un número y un
-                                    carácter especial.</small>
+
+                            <div class="form-group">
+                                <label for="password_confirmation" class="font-weight-bold">Confirmar nueva contraseña</label>
+                                <div class="input-group">
+                                    <input id="password_confirmation" type="password" class="form-control"
+                                        name="password_confirmation" autocomplete="new-password" required>
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary js-mostrar" type="button"
+                                            data-destino="password_confirmation" aria-label="Mostrar u ocultar la confirmación">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <small id="avisoCoincidencia" class="d-block mt-2" aria-live="polite"></small>
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label for="password_confirmation" class="form-label">{{ __('Confirmar Contraseña') }}</label>
-                            <div class="password-input-container">
-                                <input id="password_confirmation" type="password" class="form-control"
-                                    name="password_confirmation" autocomplete="new-password" required>
-                                <span class="password-toggle" id="confirmPasswordToggle">
-                                    <i class="fas fa-eye"></i>
-                                </span>
-                            </div>
-                            <div id="passwordMatch" class="form-text"></div>
-                        </div>
-
-                        <div class="action-buttons">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>{{ __('Actualizar') }}
-                            </button>
-
-                            @php
-                                $modulo = session('modulo_seleccionado');
-                                switch ($modulo) {
-                                    case 1:
-                                        $ruta = route('InicioInventario');
-                                        break;
-                                    case 2:
-                                        $ruta = route('InicioInventario');
-                                        break;
-                                    case 3:
-                                        $ruta = route('BonoRegalo.inicio');
-                                        break;
-                                    default:
-                                        $ruta = route('InicioInventario');
-                                        break;
-                                }
-                            @endphp
-
-                            <a class="btn btn-outline-secondary" href="{{ $ruta }}">
-                                <i class="fas fa-times me-2"></i>{{ __('Cancelar') }}
+                        <div class="card-footer bg-white d-flex flex-wrap justify-content-between align-items-center">
+                            <a class="btn btn-outline-secondary mb-2" href="{{ $rutaVolver }}">
+                                <i class="fas fa-arrow-left mr-1"></i>Cancelar
                             </a>
-
+                            <button type="submit" class="btn btn-emp-primario mb-2">
+                                <i class="fas fa-save mr-1"></i>Actualizar contraseña
+                            </button>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
+    </div>
 
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                // Toggle password visibility
-                const passwordToggle = document.getElementById('passwordToggle');
-                const confirmPasswordToggle = document.getElementById('confirmPasswordToggle');
-                const passwordField = document.getElementById('password');
-                const confirmPasswordField = document.getElementById('password_confirmation');
-                const strengthBar = document.getElementById('passwordStrengthBar');
-                const passwordMatch = document.getElementById('passwordMatch');
+    @push('js')
+<script>
+    (function () {
+        var password = document.getElementById('password');
+        var confirmacion = document.getElementById('password_confirmation');
+        var barra = document.getElementById('fuerzaBarra');
+        var aviso = document.getElementById('avisoCoincidencia');
+        var form = document.getElementById('formContrasena');
 
-                passwordToggle.addEventListener('click', function() {
-                    if (passwordField.type === 'password') {
-                        passwordField.type = 'text';
-                        passwordToggle.innerHTML = '<i class="fas fa-eye-slash"></i>';
-                    } else {
-                        passwordField.type = 'password';
-                        passwordToggle.innerHTML = '<i class="fas fa-eye"></i>';
-                    }
-                });
-
-                confirmPasswordToggle.addEventListener('click', function() {
-                    if (confirmPasswordField.type === 'password') {
-                        confirmPasswordField.type = 'text';
-                        confirmPasswordToggle.innerHTML = '<i class="fas fa-eye-slash"></i>';
-                    } else {
-                        confirmPasswordField.type = 'password';
-                        confirmPasswordToggle.innerHTML = '<i class="fas fa-eye"></i>';
-                    }
-                });
-
-                // Password strength indicator
-                passwordField.addEventListener('input', function() {
-                    const password = passwordField.value;
-                    let strength = 0;
-
-                    // Check password length
-                    if (password.length >= 8) strength += 25;
-
-                    // Check for uppercase letters
-                    if (/[A-Z]/.test(password)) strength += 25;
-
-                    // Check for numbers
-                    if (/[0-9]/.test(password)) strength += 25;
-
-                    // Check for special characters
-                    if (/[^A-Za-z0-9]/.test(password)) strength += 25;
-
-                    // Update strength bar
-                    strengthBar.style.width = strength + '%';
-
-                    // Update color
-                    if (strength < 50) {
-                        strengthBar.style.backgroundColor = '#e74a3b'; // Red
-                    } else if (strength < 100) {
-                        strengthBar.style.backgroundColor = '#f6c23e'; // Yellow
-                    } else {
-                        strengthBar.style.backgroundColor = '#1cc88a'; // Green
-                    }
-                });
-
-                // Password confirmation check
-                confirmPasswordField.addEventListener('input', function() {
-                    if (confirmPasswordField.value !== passwordField.value) {
-                        passwordMatch.textContent = 'Las contraseñas no coinciden';
-                        passwordMatch.style.color = '#e74a3b';
-                    } else {
-                        passwordMatch.textContent = 'Las contraseñas coinciden';
-                        passwordMatch.style.color = '#1cc88a';
-                    }
-                });
-
-                // Form validation
-                document.getElementById('passwordForm').addEventListener('submit', function(e) {
-                    if (passwordField.value !== confirmPasswordField.value) {
-                        e.preventDefault();
-                        alert('Las contraseñas no coinciden. Por favor, verifique.');
-                    }
-                });
+        // Mostrar / ocultar contraseña
+        document.querySelectorAll('.js-mostrar').forEach(function (boton) {
+            boton.addEventListener('click', function () {
+                var campo = document.getElementById(boton.getAttribute('data-destino'));
+                var ver = campo.type === 'password';
+                campo.type = ver ? 'text' : 'password';
+                boton.querySelector('i').className = ver ? 'fas fa-eye-slash' : 'fas fa-eye';
             });
-        </script>
-    </body>
+        });
 
-    </html>
+        // Fuerza: longitud, mayúscula, número y carácter especial (25% cada criterio)
+        function fuerza(valor) {
+            var puntos = 0;
+            if (valor.length >= 8) puntos += 25;
+            if (/[A-Z]/.test(valor)) puntos += 25;
+            if (/[0-9]/.test(valor)) puntos += 25;
+            if (/[^A-Za-z0-9]/.test(valor)) puntos += 25;
+            return puntos;
+        }
+
+        function actualizarFuerza() {
+            var puntos = fuerza(password.value);
+            barra.style.width = puntos + '%';
+            barra.classList.remove('is-debil', 'is-media', 'is-fuerte');
+            if (puntos === 0) return;
+            if (puntos < 50) barra.classList.add('is-debil');
+            else if (puntos < 100) barra.classList.add('is-media');
+            else barra.classList.add('is-fuerte');
+        }
+
+        function actualizarCoincidencia() {
+            if (confirmacion.value === '') {
+                aviso.textContent = '';
+                aviso.className = 'd-block mt-2';
+            } else if (confirmacion.value !== password.value) {
+                aviso.textContent = 'Las contraseñas no coinciden.';
+                aviso.className = 'd-block mt-2 emp-txt-error';
+            } else {
+                aviso.textContent = 'Las contraseñas coinciden.';
+                aviso.className = 'd-block mt-2 emp-txt-ok';
+            }
+        }
+
+        password.addEventListener('input', function () { actualizarFuerza(); actualizarCoincidencia(); });
+        confirmacion.addEventListener('input', actualizarCoincidencia);
+
+        form.addEventListener('submit', function (e) {
+            if (password.value !== confirmacion.value) {
+                e.preventDefault();
+                actualizarCoincidencia();
+                confirmacion.focus();
+            }
+        });
+    })();
+</script>
+    @endpush
 @endsection

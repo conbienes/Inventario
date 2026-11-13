@@ -15,24 +15,32 @@ class AlmacenController extends Controller
 {
     public function consultar(Request $request)
     {
-        if (Auth::check() && auth()->user()->id_tipoempleado==1)
-        {
-
-        $buscar=strtoupper(trim($request->get('texto')));
-
-        $Almacen = DB::table('Almacen')
-            ->where("Nombre",'like',"%".$buscar."%")->paginate(10);
-
-        return view('Inventario.Almacen.ConsultarAlmacen',compact('Almacen'));
+        if (! (Auth::check() && auth()->user()->id_tipoempleado == 1)) {
+            return redirect('/');
         }
-        else
-        {
-          return redirect('/');
+
+        $buscar = strtoupper(trim((string) $request->get('texto', '')));
+
+        $query = DB::table('Almacen');
+        if ($buscar !== '') {
+            $query->where(function ($w) use ($buscar) {
+                $w->where('Nombre', 'like', '%' . $buscar . '%');
+            });
         }
+        if (in_array((string) $request->get('estado'), ['1', '2'], true)) {
+            $query->where('Estado', (int) $request->get('estado'));
+        }
+
+        match ((string) $request->get('orden', 'nombre')) {
+            'nombre_desc' => $query->orderByDesc('Nombre'),
+            'recientes' => $query->orderByDesc('created_at')->orderByDesc('Id'),
+            default => $query->orderBy('Nombre'),
+        };
+
+        $Almacen = $query->paginate(20)->withQueryString();
+
+        return view('Inventario.Almacen.ConsultarAlmacen', compact('Almacen'));
     }
-
-
-
 
     public function editar($id)
     {
@@ -60,9 +68,7 @@ class AlmacenController extends Controller
                 ->update(['Nombre' => strtoupper(trim($request['Nombre'])),
                         'Estado'=>$request['Estado']]);
 
-                $Almacen = DB::table('Almacen')->paginate(10);
-
-                return view('Inventario.Almacen.ConsultarAlmacen',compact('Almacen'));
+                return redirect()->route('Almacen')->with('success', 'Almacén actualizado correctamente.');
         }
         else
         {
@@ -87,6 +93,9 @@ class AlmacenController extends Controller
     {
         if (Auth::check() && auth()->user()->id_tipoempleado==1)
         {
+            // Se normaliza antes de validar para que la comprobación de duplicados compare igual que se guarda (mayúsculas).
+            $request->merge(['Nombre' => strtoupper(trim((string) $request->input('Nombre')))]);
+
             $validated = $request->validate([
                 'Nombre' => 'required|unique:Almacen|min:2|max:100'
             ]);
@@ -97,9 +106,7 @@ class AlmacenController extends Controller
             $save->IdEmpleado=auth()->user()->id;
             $save->save();
 
-            $Almacen = DB::table('Almacen')->paginate(10);
-
-            return view('Inventario.Almacen.ConsultarAlmacen',compact('Almacen'));
+            return redirect()->route('Almacen')->with('success', 'Almacén registrado correctamente.');
         }
         else
         {

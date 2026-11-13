@@ -48,6 +48,7 @@ class RegEmpleadoController extends Controller
                 'estado' => Estado::all(),
                 'modulos' => Modulo::all(),
                 'permisos' => Permiso::all(),
+                'catalogoEspeciales' => \App\Models\Seguridad\PermisoEspecial::CODIGOS,
             ]);
         } else {
             return redirect('/');
@@ -57,19 +58,59 @@ class RegEmpleadoController extends Controller
     public function consultar(Request $request)
     {
         if (Auth::check()) {
-            $buscar = strtoupper(trim($request->get('texto')));
+            $buscar = strtoupper(trim((string) $request->get('texto', '')));
+            $orden = (string) $request->get('orden', '');
 
-            if (!is_null($buscar)) {
-                $empleado = DB::table('empleados')
-                    ->where('cedula', 'like', '%' . $buscar . '%')
-                    ->orwhere('nombre', 'like', '%' . $buscar . '%')
-                    ->orwhere('apellidos', 'like', '%' . $buscar . '%')
-                    ->paginate(10);
-            } else {
-                $empleado = DB::table('empleados')->paginate(8);
+            $query = DB::table('empleados as e')
+                ->leftJoin('areas as a', 'a.id', '=', 'e.id_area')
+                ->leftJoin('Estados as s', 's.id', '=', 'e.id_estado')
+                ->select('e.id', 'e.cedula', 'e.nombre', 'e.apellidos', 'e.Correo', 'a.nombre as area', 's.nombre as estado');
+
+            if ($buscar !== '') {
+                $query->where(function ($q) use ($buscar) {
+                    $q->where('e.cedula', 'like', '%' . $buscar . '%')
+                        ->orWhere('e.nombre', 'like', '%' . $buscar . '%')
+                        ->orWhere('e.apellidos', 'like', '%' . $buscar . '%');
+                });
             }
 
-            return view('regEmpleado.consulta', compact('empleado'));
+            // Filtros por lista: solo se aplican con un id numérico válido.
+            foreach (['estado' => 'e.id_estado', 'division' => 'e.id_div', 'area' => 'e.id_area'] as $parametro => $columna) {
+                $valor = (string) $request->get($parametro, '');
+                if (ctype_digit($valor)) {
+                    $query->where($columna, (int) $valor);
+                }
+            }
+
+            if ($orden === 'nombre') {
+                $query->orderBy('e.nombre')->orderBy('e.apellidos');
+            } elseif ($orden === 'recientes') {
+                $query->orderByDesc('e.created_at')->orderByDesc('e.id');
+            } else {
+                $query->orderBy('e.apellidos')->orderBy('e.nombre');
+            }
+
+            $empleado = $query->paginate(20)->withQueryString();
+
+            // Opciones de los filtros
+            $estados = DB::table('estados')->orderBy('nombre')->pluck('nombre', 'id')->all();
+            $divisiones = DB::table('divisiones')->orderBy('nombre')->pluck('nombre', 'id')->all();
+            $areas = DB::table('areas')->orderBy('nombre')->pluck('nombre', 'id')->all();
+
+            // Módulos asignados a cada empleado de la página (menú: tabla empleado_modulo)
+            $modulosPorEmpleado = DB::table('empleado_modulo as em')
+                ->join('modulos as m', 'm.id', '=', 'em.modulo_id')
+                ->whereIn('em.empleado_id', $empleado->pluck('id'))
+                ->orderBy('m.nombre')
+                ->get(['em.empleado_id', 'm.nombre'])
+                ->groupBy('empleado_id');
+
+            $empleado->getCollection()->transform(function ($fila) use ($modulosPorEmpleado) {
+                $fila->modulos = ($modulosPorEmpleado[$fila->id] ?? collect())->pluck('nombre')->all();
+                return $fila;
+            });
+
+            return view('regEmpleado.consulta', compact('empleado', 'estados', 'divisiones', 'areas'));
         } else {
             return redirect('/');
         }
@@ -128,6 +169,28 @@ class RegEmpleadoController extends Controller
     }
 
 
+    /** Módulos donde el usuario que hace el cambio es administrador (permiso 1 o 2). */
+    private function modulosAdministrables(): array
+    {
+        return DB::table('empleado_modulo_permiso')
+            ->where('id_empleado', Auth::id())
+            ->whereIn('id_permiso', [1, 2])
+            ->pluck('id_modulo')
+            ->map(fn ($m) => (int) $m)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** Solo conserva los módulos que el administrador actual puede asignar. */
+    private function filtrarModulos($modulos): array
+    {
+        if (!is_array($modulos)) {
+            return [];
+        }
+        return array_intersect_key($modulos, array_flip($this->modulosAdministrables()));
+    }
+
     public function guardar(ValidarUsuario $request)
     {
         $ruta = match (session('modulo_seleccionado')) {
@@ -135,6 +198,8 @@ class RegEmpleadoController extends Controller
             3 => route('BonoRegalo.inicio'),
             default => route('InicioInventario'),
         };
+
+        $request->merge(['modulos' => $this->filtrarModulos($request->input('modulos'))]);
 
         DB::transaction(function () use ($request) {
             // 1) Crear usuario
@@ -151,6 +216,11 @@ class RegEmpleadoController extends Controller
             $usuario->id_area = $request->id_area;
             $usuario->Documental = 0;
             $usuario->save();
+
+            // Solo quien administra Inventario (módulo 1) puede asignar permisos especiales de Inventario
+            if (in_array(1, $this->modulosAdministrables(), true)) {
+                \App\Models\Seguridad\PermisoEspecial::sincronizar((int) $usuario->id, (array) $request->input('permisos_especiales', []));
+            }
 
             // 2) Guardar permisos por módulo (tabla ternaria)
             if ($request->has('modulos') && is_array($request->modulos)) {
@@ -222,6 +292,9 @@ class RegEmpleadoController extends Controller
     public function actcontrasena(contrasenaRequest $request, $id)
     {
         if (Auth::check()) {
+            // Solo se cambia la contraseña propia. Un administrador cambia la de otros desde actualizar_empleado.
+            abort_unless((int) $id === (int) Auth::id(), 403);
+
             $empleado = Usuario::findOrFail($id);
             $empleado->password = Hash::make($request['password']);
             $empleado->save();
@@ -269,12 +342,17 @@ class RegEmpleadoController extends Controller
             })
             ->toArray();
 
-        return view('regEmpleado.editar', compact('empleado', 'TipoEmpleado', 'sexo', 'estado', 'area', 'division', 'modulos', 'permisos', 'permisosAsignados'));
+        $permisosEspeciales = \App\Models\Seguridad\PermisoEspecial::de((int) $empleado->id);
+        $catalogoEspeciales = \App\Models\Seguridad\PermisoEspecial::CODIGOS;
+
+        return view('regEmpleado.editar', compact('empleado', 'TipoEmpleado', 'sexo', 'estado', 'area', 'division', 'modulos', 'permisos', 'permisosAsignados', 'permisosEspeciales', 'catalogoEspeciales'));
     }
 
     public function actualizar(ValidarUsuario $request, $id)
     {
         // IMPORTANTE: quitar dd($request) en producción
+
+        $request->merge(['modulos' => $this->filtrarModulos($request->input('modulos'))]);
 
         DB::transaction(function () use ($request, $id) {
             $empleado = Usuario::findOrFail($id);
@@ -297,8 +375,35 @@ class RegEmpleadoController extends Controller
 
             $empleado->save();
 
+            // Solo quien administra Inventario (módulo 1) puede cambiar permisos especiales de Inventario
+            if (in_array(1, $this->modulosAdministrables(), true)) {
+                \App\Models\Seguridad\PermisoEspecial::sincronizar((int) $empleado->id, (array) $request->input('permisos_especiales', []));
+            }
+
             // Reset de permisos del empleado
-            DB::table('empleado_modulo_permiso')->where('id_empleado', $empleado->id)->delete();
+            // Solo se reemplazan los permisos de los módulos que administra quien hace el cambio;
+            // los permisos de otros módulos se conservan intactos.
+            DB::table('empleado_modulo_permiso')
+                ->where('id_empleado', $empleado->id)
+                ->whereIn('id_modulo', $this->modulosAdministrables())
+                ->delete();
+
+            // empleado_modulo alimenta el menú lateral y la relación modulos(): debe reflejar los cambios
+            // (antes solo se escribía al crear el empleado).
+            DB::table('empleado_modulo')
+                ->where('empleado_id', $empleado->id)
+                ->whereIn('modulo_id', $this->modulosAdministrables())
+                ->delete();
+
+            $filasModulos = [];
+            foreach ((array) $request->input('modulos', []) as $moduloId => $permisos) {
+                if (is_array($permisos) && count($permisos) > 0) {
+                    $filasModulos[] = ['empleado_id' => $empleado->id, 'modulo_id' => (int) $moduloId];
+                }
+            }
+            if ($filasModulos) {
+                DB::table('empleado_modulo')->insert($filasModulos);
+            }
 
             // Insert masivo de los nuevos permisos (si vienen)
             if ($request->has('modulos') && is_array($request->modulos)) {

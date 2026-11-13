@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Inventario\Alertastock;
 
 use Illuminate\Http\Request;
+use App\Services\Inventario\FiltrosInventario;
 use App\Models\Inventario\solicitudPedidos;
 use App\Models\Inventario\Movimientos;
 use App\Models\Inventario\Inventario;
@@ -26,38 +27,17 @@ class AlertastockController extends Controller
         if (Auth::check() && auth()->user()->id_tipoempleado==1)
         {
             $id =  Crypt::decrypt($id);
-            $buscar=strtoupper(trim($request->get('texto')));
             $Division = Division::findOrFail($id);
+            divisionInventarioActual((int) $id);
 
-            if (!empty($buscar) )
-            {
-                    $Inventario = DB::table('Inventario')
-                    ->join('Producto as p','p.Id','=','Inventario.IdProducto')
-                    ->join('Divisiones as d','d.Id','=','Inventario.IdDivisiones')
-                    ->join('Almacen as a','a.Id','=','Inventario.IdAlmacen')
-                    ->join('categoria_inventario as c','c.Id','=','Inventario.IdCategoria')
-                    ->select('Inventario.Id','Inventario.Cantidades','Inventario.CantidadMin','Inventario.CantidadMax',
-                    'p.Nombre as Producto','d.Nombre as Division','a.Nombre as Almacen','c.Nombre as Categoria','p.Codigo')
-                    ->where('d.Id','=',$id)
-                    ->where('p.Nombre','like','%'.$buscar.'%')
-                    ->whereRaw('Inventario.CantidadMin > Inventario.Cantidades')
-                    ->OrderBy('Inventario.Cantidades' ,'desc')->paginate(10);
-            }
-            else
-            {
-                $Inventario = DB::table('Inventario')
-                ->join('Producto as p','p.Id','=','Inventario.IdProducto')
-                ->join('Divisiones as d','d.Id','=','Inventario.IdDivisiones')
-                ->join('Almacen as a','a.Id','=','Inventario.IdAlmacen')
-                ->join('categoria_inventario as c','c.Id','=','Inventario.IdCategoria')
-                ->select('Inventario.Id','Inventario.Cantidades','Inventario.CantidadMin','Inventario.CantidadMax',
-                'p.Nombre as Producto','d.Nombre as Division','a.Nombre as Almacen','c.Nombre as Categoria','p.Codigo')
-                ->where('d.Id','=',$id )
-                ->whereRaw('Inventario.CantidadMin > Inventario.Cantidades')
-                ->OrderBy('Inventario.Cantidades' ,'desc')->paginate(10);
-            }
+            // Solo productos por debajo de su mínimo; se pueden filtrar además por "sin existencia" o "bajo el mínimo"
+            $filtros = new FiltrosInventario((int) $id);
+            $consulta = $filtros->consulta()->whereRaw('Inventario.CantidadMin > Inventario.Cantidades');
+            $filtros->aplicar($consulta, $request, ['sin', 'bajo']);
+            $Inventario = $filtros->ordenar($consulta, $request, 'faltante')->paginate(20)->withQueryString();
+            $opciones = $filtros->opciones();
 
-            return view('Inventario.AlertaStock.AlertaStock',compact('Inventario','Division'));
+            return view('Inventario.AlertaStock.AlertaStock',compact('Inventario','Division','opciones'));
         }
         else
         {
@@ -70,9 +50,16 @@ class AlertastockController extends Controller
         if (Auth::check() && auth()->user()->id_tipoempleado==1)
         {
 
-            $Division = DB::table('divisiones')->get();
+            // Va directo a la empresa con la que se está trabajando; se cambia desde el selector de la vista.
+            $division = divisionInventarioActual();
+            if ($division === null) {
+                $Division = collect();
+                return view('Inventario.AlertaStock.Inicio', compact('Division'));
+            }
 
-            return view('Inventario.AlertaStock.Inicio',compact('Division'));
+            session()->reflash(); // conserva los mensajes de éxito/error de la acción anterior
+
+            return redirect()->route('AlertaStock', ['id' => Crypt::encrypt($division)]);
         }
         else
         {

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 320" role="img" aria-label="Panel de gestión CONBIENES">
+  <defs>
+    <linearGradient id="pantalla" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E8F3FA"/>
+    </linearGradient>
+    <filter id="sombra" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#001F33" flood-opacity=".35"/>
+    </filter>
+  </defs>
+
+  <!-- halos -->
+  <circle cx="200" cy="160" r="138" fill="#FFFFFF" opacity=".06"/>
+  <circle cx="200" cy="160" r="104" fill="#FFFFFF" opacity=".06"/>
+
+  <!-- monitor -->
+  <g filter="url(#sombra)">
+    <rect x="88" y="62" width="224" height="150" rx="14" fill="url(#pantalla)"/>
+    <rect x="88" y="62" width="224" height="24" rx="14" fill="#DCEBF5"/>
+    <rect x="88" y="74" width="224" height="12" fill="#DCEBF5"/>
+    <circle cx="104" cy="74" r="4" fill="#F87171"/>
+    <circle cx="117" cy="74" r="4" fill="#FBBF24"/>
+    <circle cx="130" cy="74" r="4" fill="#34D399"/>
+  </g>
+  <rect x="186" y="212" width="28" height="22" fill="#CFE3F0"/>
+  <rect x="160" y="232" width="80" height="10" rx="5" fill="#E8F3FA"/>
+
+  <!-- barras -->
+  <rect x="106" y="160" width="16" height="36" rx="4" fill="#7FB4D6"/>
+  <rect x="128" y="140" width="16" height="56" rx="4" fill="#3E8BBE"/>
+  <rect x="150" y="122" width="16" height="74" rx="4" fill="#005484"/>
+  <rect x="172" y="148" width="16" height="48" rx="4" fill="#3E8BBE"/>
+  <line x1="102" y1="196" x2="194" y2="196" stroke="#B6D3E6" stroke-width="2"/>
+
+  <!-- dona -->
+  <circle cx="252" cy="140" r="30" fill="none" stroke="#DCEBF5" stroke-width="14"/>
+  <circle cx="252" cy="140" r="30" fill="none" stroke="#005484" stroke-width="14"
+          stroke-dasharray="120 189" transform="rotate(-90 252 140)"/>
+  <circle cx="252" cy="140" r="30" fill="none" stroke="#F59E0B" stroke-width="14"
+          stroke-dasharray="40 189" stroke-dashoffset="-120" transform="rotate(-90 252 140)"/>
+  <rect x="222" y="184" width="60" height="6" rx="3" fill="#B6D3E6"/>
+  <rect x="232" y="194" width="40" height="6" rx="3" fill="#DCEBF5"/>
+
+  <!-- tarjeta flotante: caja -->
+  <g filter="url(#sombra)">
+    <rect x="30" y="198" width="92" height="62" rx="12" fill="#FFFFFF"/>
+  </g>
+  <path d="M50 222 l16 -8 l16 8 v18 l-16 8 l-16 -8z" fill="#F7C97E"/>
+  <path d="M50 222 l16 8 l16 -8" fill="none" stroke="#B45309" stroke-width="2" stroke-linejoin="round"/>
+  <line x1="66" y1="230" x2="66" y2="248" stroke="#B45309" stroke-width="2"/>
+  <rect x="88" y="220" width="24" height="5" rx="2.5" fill="#B6D3E6"/>
+  <rect x="88" y="231" width="16" height="5" rx="2.5" fill="#DCEBF5"/>
+
+  <!-- tarjeta flotante: regalo -->
+  <g filter="url(#sombra)">
+    <rect x="282" y="34" width="92" height="62" rx="12" fill="#FFFFFF"/>
+  </g>
+  <rect x="298" y="56" width="30" height="24" rx="3" fill="#005484"/>
+  <rect x="294" y="50" width="38" height="9" rx="2" fill="#3E8BBE"/>
+  <rect x="310" y="50" width="6" height="30" fill="#F59E0B"/>
+  <path d="M313 50 c-10 -12 -18 -2 -8 0z M313 50 c10 -12 18 -2 8 0z" fill="#F59E0B"/>
+  <rect x="340" y="56" width="24" height="5" rx="2.5" fill="#B6D3E6"/>
+  <rect x="340" y="67" width="16" height="5" rx="2.5" fill="#DCEBF5"/>
+
+  <!-- chispas -->
+  <path d="M60 80 l3 9 l9 3 l-9 3 l-3 9 l-3 -9 l-9 -3 l9 -3z" fill="#FDE68A"/>
+  <path d="M346 214 l2 6 l6 2 l-6 2 l-2 6 l-2 -6 l-6 -2 l6 -2z" fill="#FFFFFF" opacity=".8"/>
+  <circle cx="330" cy="250" r="4" fill="#7DD3FC"/>
+  <circle cx="78" cy="132" r="3" fill="#7DD3FC"/>
+</svg>

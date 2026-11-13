@@ -20,12 +20,54 @@ use App\Mail\NotiEmpleado;
 
 class EntradaAlmacenController extends Controller
 {
+    /**
+     * Filtros comunes de las listas de pedidos (por procesar y aprobados):
+     * desde / hasta (fecha de ingreso), valor_min / valor_max y orden.
+     */
+    private function filtrarRegistros($query, Request $request)
+    {
+        $request->validate([
+            'desde' => ['nullable', 'date'],
+            'hasta' => ['nullable', 'date'],
+            'valor_min' => ['nullable', 'numeric', 'min:0'],
+            'valor_max' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        if ($request->filled('desde')) {
+            $query->whereDate('registro_producto.FechaIngreso', '>=', $request->get('desde'));
+        }
+        if ($request->filled('hasta')) {
+            $query->whereDate('registro_producto.FechaIngreso', '<=', $request->get('hasta'));
+        }
+        if ($request->filled('valor_min')) {
+            $query->where('registro_producto.PrecioTotal', '>=', (float) $request->get('valor_min'));
+        }
+        if ($request->filled('valor_max')) {
+            $query->where('registro_producto.PrecioTotal', '<=', (float) $request->get('valor_max'));
+        }
+
+        return match ((string) $request->get('orden', 'recientes')) {
+            'antiguas' => $query->orderBy('registro_producto.FechaIngreso')->orderBy('registro_producto.Id'),
+            'valor_desc' => $query->orderByDesc('registro_producto.PrecioTotal'),
+            'valor_asc' => $query->orderBy('registro_producto.PrecioTotal'),
+            'proveedor' => $query->orderBy('P.Nombre')->orderByDesc('registro_producto.FechaIngreso'),
+            default => $query->orderByDesc('registro_producto.FechaIngreso')->orderByDesc('registro_producto.Id'),
+        };
+    }
+
     public function Inicio()
     {
         if (Auth::check() && auth()->user()->id_tipoempleado == 1) {
-            $Division = DB::table('divisiones')->get();
+            // Va directo a la empresa con la que se está trabajando; se cambia desde el selector de la vista.
+            $division = divisionInventarioActual();
+            if ($division === null) {
+                $Division = collect();
+                return view('Inventario.EntradaAlmacen.InicioEntradaAlmacen', compact('Division'));
+            }
 
-            return view('Inventario.EntradaAlmacen.InicioEntradaAlmacen', compact('Division'));
+            session()->reflash(); // conserva los mensajes de éxito/error de la acción anterior
+
+            return redirect()->route('Vista_EntAlmacen', ['id' => Crypt::encrypt($division)]);
         } else {
             return redirect('/');
         }
@@ -35,10 +77,19 @@ class EntradaAlmacenController extends Controller
     {
         if (Auth::check() && auth()->user()->id_tipoempleado == 1) {
             $id = Crypt::decrypt($id);
+            divisionInventarioActual((int) $id);
 
             $Division = DB::table('divisiones')->where('id', $id)->get();
 
-            $Activas = DB::table('registro_producto')->where('Estado', '=', 1)->where('IdDivisiones', '=', $id)->get();
+            // Pedidos por procesar, más recientes primero (con el proveedor para mostrarlo en el panel)
+            $Activas = DB::table('registro_producto')
+                ->leftJoin('Proveedor as P', 'P.Id', '=', 'registro_producto.IdProveedor')
+                ->select('registro_producto.*', 'P.Nombre as Proveedor', 'P.Nit as Nit')
+                ->where('registro_producto.Estado', '=', 1)
+                ->where('registro_producto.IdDivisiones', '=', $id)
+                ->orderByDesc('registro_producto.FechaIngreso')
+                ->orderByDesc('registro_producto.Id')
+                ->get();
 
             $Terminadas = DB::table('registro_producto')->where('Estado', '=', 2)->where('IdDivisiones', '=', $id)->get();
 
@@ -73,7 +124,7 @@ class EntradaAlmacenController extends Controller
                 ->where('id', $request['Id'])
                 ->update(['Nfactura' => strtoupper(trim($request['Nfactura'])), 'OrdenPedido' => strtoupper(trim($request['OrdenPedido']))]);
 
-            return redirect('/EntAlmacen')->with('succes', 'La solicitud ' . $request['Id'] . ' fue actualizada correctamente');
+            return redirect()->route('EntAlmacen')->with('succes', 'La solicitud ' . $request['Id'] . ' fue actualizada correctamente');
         } else {
             return redirect('/');
         }
@@ -99,23 +150,29 @@ class EntradaAlmacenController extends Controller
     public function SolicAproba(Request $request, $id)
     {
         if (Auth::check() && auth()->user()->id_tipoempleado == 1) {
-            $buscar = strtoupper(trim($request->get('texto')));
+            $buscar = strtoupper(trim((string) $request->get('texto', '')));
 
             $div = Crypt::decrypt($id);
 
+            // Solo pedidos terminados (Estado 2) de la division; la busqueda no debe salir de esa division.
+            $query = DB::table('registro_producto')
+                ->join('Proveedor as P', 'P.Id', '=', 'registro_producto.IdProveedor')
+                ->join('estados as E', 'E.Id', '=', 'registro_producto.Estado')
+                ->select('P.Nombre as Proveedor', 'P.Nit as Nit', 'registro_producto.Id', 'registro_producto.PrecioTotal as PrecioTotal', 'registro_producto.Nfactura as Nfactura', 'registro_producto.OrdenPedido as OrdenPedido', 'registro_producto.FechaIngreso as FechaIngreso', 'registro_producto.Estado as Estados', 'E.Nombre as Estado', 'registro_producto.IdDivisiones')
+                ->where('registro_producto.IdDivisiones', '=', $div)
+                ->where('registro_producto.Estado', '=', 2);
+
             if ($buscar != '') {
-                $SoliPendi = DB::table('registro_producto')
-                    ->join('Proveedor as P', 'P.Id', '=', 'registro_producto.IdProveedor')
-                    ->join('estados as E', 'E.Id', '=', 'registro_producto.Estado')
-                    ->select('P.Nombre as Proveedor', 'P.Nit as Nit', 'registro_producto.Id', 'registro_producto.PrecioTotal as PrecioTotal', 'registro_producto.Nfactura as Nfactura', 'registro_producto.OrdenPedido as OrdenPedido', 'registro_producto.FechaIngreso as FechaIngreso', 'registro_producto.Estado as Estados', 'E.Nombre as Estado', 'registro_producto.IdDivisiones')
-                    ->where('P.Nombre', 'like', '%' . $buscar . '%')
-                    ->orwhere('P.Nit', 'like', '%' . $buscar . '%')
-                    ->orwhere('registro_producto.OrdenPedido', 'like', '%' . $buscar . '%')
-                    ->orwhere('registro_producto.Nfactura', 'like', '%' . $buscar . '%')
-                    ->paginate(20);
-            } else {
-                $SoliPendi = DB::table('registro_producto')->join('Proveedor as P', 'P.Id', '=', 'registro_producto.IdProveedor')->join('estados as E', 'E.Id', '=', 'registro_producto.Estado')->select('P.Nombre as Proveedor', 'P.Nit as Nit', 'registro_producto.Id', 'registro_producto.PrecioTotal as PrecioTotal', 'registro_producto.Nfactura as Nfactura', 'registro_producto.OrdenPedido as OrdenPedido', 'registro_producto.FechaIngreso as FechaIngreso', 'registro_producto.Estado as Estados', 'E.Nombre as Estado', 'registro_producto.IdDivisiones')->where('registro_producto.IdDivisiones', '=', $div)->paginate(20);
+                $query->where(function ($subquery) use ($buscar) {
+                    $subquery
+                        ->where('P.Nombre', 'like', '%' . $buscar . '%')
+                        ->orWhere('P.Nit', 'like', '%' . $buscar . '%')
+                        ->orWhere('registro_producto.OrdenPedido', 'like', '%' . $buscar . '%')
+                        ->orWhere('registro_producto.Nfactura', 'like', '%' . $buscar . '%');
+                });
             }
+
+            $SoliPendi = $this->filtrarRegistros($query, $request)->paginate(20)->withQueryString();
 
             return view('Inventario.EntradaAlmacen.VistaAprobadas', compact('SoliPendi', 'div'));
         } else {
@@ -175,7 +232,9 @@ class EntradaAlmacenController extends Controller
                     $ItemFact = new itemfactura();
                     $ItemFact->CantidadS = $request->Cantidad[$i];
                     $ItemFact->IdInventario = $request->IdInventario[$i];
-                    $ItemFact->ValorUnidad = $request->Valor[$i];
+                    // La columna es entera y admite NULL: un valor vacío no puede enviarse como cadena vacía
+                    $valorLinea = $request->Valor[$i] ?? null;
+                    $ItemFact->ValorUnidad = ($valorLinea === null || $valorLinea === '') ? null : (int) round((float) $valorLinea);
                     $ItemFact->IdRegProduc = $save->id;
                     $ItemFact->Completas = 0;
                     $ItemFact->CantidadA = 0;
@@ -183,7 +242,7 @@ class EntradaAlmacenController extends Controller
                 }
             }
 
-            return redirect('/EntAlmacen')->with('succes', 'El pedido de compra se ingreso correctamente');
+            return redirect()->route('EntAlmacen')->with('succes', 'El pedido de compra se ingreso correctamente');
         } else {
             return redirect('/');
         }
@@ -193,7 +252,7 @@ class EntradaAlmacenController extends Controller
     {
         if (Auth::check() && auth()->user()->id_tipoempleado == 1) {
 
-            $buscar = strtoupper(trim($request->get('texto')));
+            $buscar = strtoupper(trim((string) $request->get('texto', '')));
             $div = Crypt::decrypt($id);
 
             // Consulta base compartida
@@ -210,8 +269,7 @@ class EntradaAlmacenController extends Controller
                 });
             }
 
-            // Paginación final
-            $SoliPendi = $query->paginate(20);
+            $SoliPendi = $this->filtrarRegistros($query, $request)->paginate(20)->withQueryString();
 
             return view('Inventario.EntradaAlmacen.VistaPendientes', compact('SoliPendi', 'div'));
 
@@ -277,7 +335,7 @@ class EntradaAlmacenController extends Controller
                 $ItemActivos = DB::table('itemfactura')->where('IdRegProduc', $registroF)->where('Completas', '=', 0)->get();
 
                 if (count($ItemActivos) > 0) {
-                    return redirect('/EntAlmacen')->with('succes1', 'La orden de compra quedo activa');
+                    return redirect()->route('EntAlmacen')->with('succes1', 'La orden de compra quedo activa');
                 } else {
                     $FacturaItem = DB::table('itemfactura')->where('IdRegProduc', $registroF)->get();
 

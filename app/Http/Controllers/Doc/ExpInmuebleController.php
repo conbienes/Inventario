@@ -52,11 +52,6 @@ class ExpInmuebleController extends Controller
         }
     }
 
-    public function Inicio2(Request $request)
-    {
-        dd('La función Inicio se está ejecutando correctamente');
-    }
-
     public function Inicio(Request $request)
     {
         try {
@@ -437,12 +432,8 @@ class ExpInmuebleController extends Controller
 
             return json_decode($response->getBody(), true);
         } catch (\Exception $e) {
-            dd([
-                'error' => $e->getMessage(),
-                'linea' => $e->getLine(),
-                'archivo' => $e->getFile(),
-                'codigo' => $e->getCode(),
-            ]);
+            \Illuminate\Support\Facades\Log::error('SharePoint (ExpInmueble): ' . $e->getMessage(), ['linea' => $e->getLine(), 'archivo' => $e->getFile()]);
+            throw $e;
         }
     }
 
@@ -475,12 +466,8 @@ class ExpInmuebleController extends Controller
             return json_decode($response->getBody(), true);
         } catch (\Exception $e) {
             // Mostrar error con detalles
-            dd([
-                'error' => $e->getMessage(),
-                'linea' => $e->getLine(),
-                'archivo' => $e->getFile(),
-                'codigo' => $e->getCode(),
-            ]);
+            \Illuminate\Support\Facades\Log::error('SharePoint (ExpInmueble): ' . $e->getMessage(), ['linea' => $e->getLine(), 'archivo' => $e->getFile()]);
+            throw $e;
         }
     }
 

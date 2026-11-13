@@ -63,7 +63,11 @@ class BusinessCentralService
             return $this->http->request($method, $url, $opts);
         } catch (RequestException $e) {
             $code = $e->getResponse()?->getStatusCode();
-            if ($retries > 0 && ($code === 429 || ($code >= 500 && $code <= 599))) {
+            // Un POST que responde 5xx pudo guardarse igualmente en BC (p. ej. una línea de diario):
+            // reintentarlo duplicaría el asiento. Solo se reintenta 5xx en métodos idempotentes.
+            // El 429 significa que BC rechazó la petición, así que siempre es seguro reintentarla.
+            $esIdempotente = in_array(strtoupper($method), ['GET', 'PUT', 'PATCH', 'DELETE'], true);
+            if ($retries > 0 && ($code === 429 || ($esIdempotente && $code >= 500 && $code <= 599))) {
                 $delay = (int) (1000 * pow(2, 3 - $retries)); // backoff exponencial
                 usleep($delay * 1000);
                 $retries--;
@@ -181,6 +185,34 @@ class BusinessCentralService
                 'data' => null,
             ];
         }
+    }
+
+    /**
+     * Busca en BC una línea de diario ya existente con esos valores (para no reenviarla).
+     * Lanza excepción si la consulta falla: quien llama NO debe reenviar en ese caso.
+     *
+     * @param array $campos ['DocumentoExterno' => ..., 'NumeroCuenta' => ..., 'Importe' => float, 'Description' => ...]
+     */
+    public function findCustomJournalLine(string $companyId, array $campos): ?array
+    {
+        $token = $this->getAccessToken();
+        $url = rtrim($this->customApiBase(), '/') . "/companies({$companyId})/DiariosGenerales";
+
+        $partes = [];
+        foreach ($campos as $campo => $valor) {
+            $partes[] = $campo === 'Importe'
+                ? sprintf('%s eq %s', $campo, number_format((float) $valor, 2, '.', ''))
+                : sprintf("%s eq '%s'", $campo, str_replace("'", "''", (string) $valor));
+        }
+        $filtro = implode(' and ', $partes);
+
+        $resp = $this->requestWithRetry('GET', $url . '?$top=1&$filter=' . rawurlencode($filtro), [
+            'headers' => $this->headers($token),
+            'timeout' => 15,
+        ]);
+        $data = json_decode((string) $resp->getBody(), true);
+
+        return $data['value'][0] ?? null;
     }
 
     /** 2) Crear cliente en TU API: page 50246 "Customer API Ext" (EntitySetName = customersExt) */

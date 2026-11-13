@@ -1,110 +1,83 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
+
 @section('content')
+<div class="inv-cabecera">
+    <div>
+        <h1 class="inv-titulo">Solicitudes por aprobar</h1>
+        <p class="inv-subtitulo">Revise las solicitudes de productos enviadas por el personal.</p>
+    </div>
+    <div class="inv-acciones">
+        <a class="btn btn-outline-secondary" href="{{ route('InicioInventario') }}"><i class="fas fa-home"></i> Inicio</a>
+    </div>
+</div>
 
-<div class="card card-primary"  >
-    <div class="card-header " >                                        
-        <label size >{{ __('SOLICITUDES POR APROBAR') }}</label>                                                                                                                  
-    </div>  
+@if (session('success'))
+    <div class="alert alert-success" role="alert">{{ session('success') }}</div>
+@endif
+@if (session('warning'))
+    <div class="alert inv-alerta-ambar" role="alert">{{ session('warning') }}</div>
+@endif
+@if (session('success1'))
+    <div class="alert alert-danger" role="alert">{{ session('success1') }}</div>
+@endif
 
-    @if (session("success"))
+@include('Inventario.partials.filtros', [
+    'accion' => route('Solicitudes'),
+    'total'  => $pedidoinventario->total(),
+    'campos' => [
+        ['tipo' => 'texto',  'nombre' => 'texto', 'placeholder' => 'Empleado o número de solicitud'],
+        ['tipo' => 'select', 'nombre' => 'area', 'etiqueta' => 'Área', 'todos' => 'Todas', 'opciones' => $areas],
+        ['tipo' => 'fecha',  'nombre' => 'desde', 'etiqueta' => 'Desde'],
+        ['tipo' => 'fecha',  'nombre' => 'hasta', 'etiqueta' => 'Hasta'],
+        ['tipo' => 'orden',  'nombre' => 'orden', 'defecto' => 'recientes', 'opciones' => ['recientes' => 'Más recientes', 'antiguas' => 'Más antiguas', 'tentativa' => 'Fecha tentativa de entrega']],
+    ],
+])
 
-        
-          <div class="alert alert-success alert-dismissible" data-auto-dismiss="3000">
-        
-              <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
-              <ul>
-                  <li>{{ session("success") }}</li>
-              </ul>
-          </div>
-
-      @endif 
-
-      @if (session("success1"))
-
-
-      <div class="alert alert-warning alert-dismissible" data-auto-dismiss="3000">
-
-          <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
-          <ul>
-              <li>{{ session("success1") }}</li>
-          </ul>
-      </div>
-
-      @endif     
-       
-    <form action="{{route('Solicitudes')}}" method="GET">
-        <table CELLPADDING=5 >          
-          <div class="form-group" > 
-            <tr> 
-              <td>
-              </td>              
-              <td>
-                <div class="form-group ">          
-                  <input type="text"  class="form-control" name="texto" id="texto" autocomplete="off" >
-                </div> 
-              </td>
-              <td>
-                <div class="form-group ">
-                  <button type="submit" name="Buscar" id="Buscar"  class="btn btn-primary">{{ __('Buscar Solicitante') }}</button>
-                </div> 
-              </td>
-            </div> 
-            </form>
-              <td>
-                <div class="form-group ">
-                  <a class="btn btn-success" name="Crear" id="Crear"  href="{{route('InicioInventario')}}">{{ __('Atrás') }}  </a>
-                </div> 
-              </td>
-            </tr>  
-        </table>
-               
-    <div  class="card-header " >
-        <div class="row justify-content-center">
-
-               <table class="table table-striped table-bordered" > 
-                  <thead>
-                    <tr ALIGN="center">                                               
-                      <th scope="col">Código</th>
-                      <th width="200"scope="col">Solicita</th>
-                      <th width="100"scope="col"># Productos</th>
-                      <th width="100"scope="col">Estado</th>                     
-                      <th width="150"scope="col">Fecha Solicitud</th>
-                      <th width="150"scope="col">Fecha Tentativa</th>
-                      <th width="200"scope="col">Cumplir</th>
+<div class="inv-tabla-wrap">
+    <div class="table-responsive">
+        <table class="table inv-tabla">
+            <thead>
+                <tr>
+                    <th scope="col">Código</th>
+                    <th scope="col">Solicitante</th>
+                    <th scope="col" class="num"># Productos</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col">Fecha solicitud</th>
+                    <th scope="col">Fecha tentativa</th>
+                    <th scope="col" class="text-center">Revisar</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($pedidoinventario as $item)
+                    @if ((int) $item->Estado === 1)
+                        <tr>
+                            <td>{{ $item->Id }}</td>
+                            <td>{{ $item->NombreS }} {{ $item->ApellidosS }}</td>
+                            <td class="num">{{ $item->Cantidad }}</td>
+                            <td>@include('Inventario.SolicProduc._estado', ['estado' => $item->Estado])</td>
+                            <td>{{ $item->Dia }}</td>
+                            <td>{{ $item->fecha }}</td>
+                            <td class="text-center">
+                                <a class="btn btn-sm btn-outline-primary" href="{{ route('Cumplir', ['id' => Crypt::encrypt($item->Id)]) }}"><i class="far fa-eye"></i> Revisar</a>
+                            </td>
+                        </tr>
+                    @endif
+                @empty
+                    <tr>
+                        <td colspan="7">
+                            <div class="inv-vacio"><i class="fas fa-inbox"></i><p>No hay solicitudes pendientes.</p></div>
+                        </td>
                     </tr>
-                  </thead>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
 
-                  @foreach ($pedidoinventario as $item)
-                  @if ($item->Estado==1)
-                    <tr ALIGN="center"> 
-                      <td width="80"> <font size=2>{{$item->Id}}</font></td> 
-                        <td width="80"> <font size=2>{{$item->Nombre}} {{$item->Apellidos}}</font></td>                                                                                                  
-                        <td width="80"> <font size=2>{{$item->Cantidad}}</font></td>  
-                        <td width="80"> 
-                            <font style="color: rgb(255, 0, 0)" size=2>PENDIENTE</font></td>                                               
-                        <td width="80"> <font size=2>{{$item->Dia}}</font></td> 
-                        <td width="80"> <font size=2>{{$item->fecha}}</font></td>   
-                        <td><font size=4> <a data-placement="left" data-toggle="tooltip" title="ver" href="{{route('Cumplir',['id'=>Crypt::encrypt($item->Id)])}}"><i class="fas fa-flag-checkered"></i></a> </font> </td>
-                       </tr> 
-                       @else                            
-                       @endif      
-                     @endforeach                                                                                 
-              </table>  
-            </div>
-              <div style="text-align:center;">
-                <table ALIGN="center">
-                  <tr >
-                    <td >
-                      <p> {{$pedidoinventario->total()}} Registros | Página {{$pedidoinventario->currentPage()}} de {{$pedidoinventario->lastPage()}}</p> 
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      {{$pedidoinventario->links()}}
-                     </td>                                       
-                  </tr>                                                           
-                </table>
-              </div>                                                  
-          </div> 
-           
+<div class="inv-pie mt-3">
+    <span class="inv-texto-2">{{ $pedidoinventario->total() }} registros | Página {{ $pedidoinventario->currentPage() }} de {{ $pedidoinventario->lastPage() }}</span>
+    <div class="inv-paginacion">{{ $pedidoinventario->links('pagination::bootstrap-4') }}</div>
+</div>
 @endsection

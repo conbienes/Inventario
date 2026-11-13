@@ -89,12 +89,12 @@ class LoginController extends Controller
         switch ($modulo) {
             case 1: // Inventario
                 return route('Inicio');
-            case 2: // Restaurante
-                return route('BonoRegalo.Inicio.index');
+            case 2: // Restaurante: sin pantalla propia, entra a la principal
+                return route('Inicio');
             case 3: // Bono Regalo
                 return route('BonoRegalo.inicio');
             default:
-                return route('home');
+                return route('Inicio');
         }
     }
 }

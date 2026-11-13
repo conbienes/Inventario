@@ -1,5 +1,9 @@
 @extends("theme.$theme.layout")
 
+@push('css')
+    @include('BonoRegalo.partials._estilos')
+@endpush
+
 @section('content')
     <div class="container-fluid">
         <div class="card shadow mb-4">
@@ -44,7 +48,7 @@
                     </div>
                 </form>
 
-                <div class="alert alert-info d-flex justify-content-between align-items-center">
+                <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center">
                     <strong>Total Recibos de Caja encontrados:</strong>
                     <span class="badge badge-primary badge-pill" style="font-size: 1.1rem;">
                         {{ $facturas->total() }}
@@ -115,8 +119,7 @@
     </div>
 @endsection
 
-@section('scripts')
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+@push('css')
     <style>
         .card-header {
             border-radius: 0.35rem 0.35rem 0 0 !important;
@@ -131,7 +134,7 @@
         }
 
         .bg-gradient-primary {
-            background: linear-gradient(87deg, #5e72e4 0, #825ee4 100%) !important;
+            background-color: var(--br-primary) !important;
         }
 
         .pagination {
@@ -139,12 +142,12 @@
         }
 
         .page-item.active .page-link {
-            background-color: #5e72e4;
-            border-color: #5e72e4;
+            background-color: var(--br-primary);
+            border-color: var(--br-primary);
         }
 
         .page-link {
-            color: #5e72e4;
+            color: var(--br-primary);
         }
 
         th a {
@@ -157,4 +160,4 @@
             color: #f8f9fa;
         }
     </style>
-@endsection
+@endpush

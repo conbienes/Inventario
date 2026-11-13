@@ -1,123 +1,74 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
+
+@push('css')
+<link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2/css/select2.min.css') }}">
+<link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+@endpush
+
+@push('js')
+<script src="{{ asset('assets/lte/plugins/select2/js/select2.full.min.js') }}"></script>
+<script>
+    $('#Correo').select2({
+        theme: 'bootstrap4',
+        width: '100%',
+        placeholder: 'Busque un correo',
+        language: {
+            noResults: function () { return 'Correo no encontrado'; },
+            searching: function () { return 'Buscando...'; }
+        },
+        ajax: {
+            url: "{{ url('/Ajax/Correos') }}",
+            dataType: 'json',
+            delay: 250,
+            processResults: function (data) {
+                return {
+                    results: $.map(data, function (item) {
+                        return { text: item.Correo, id: item.Id };
+                    })
+                };
+            },
+            cache: true
+        }
+    });
+</script>
+@endpush
 
 @section('content')
-
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/js/select2.min.js"></script>
-<link rel="stylesheet" href="/path/to/select2.css">
-<link rel="stylesheet" href="/path/to/select2-bootstrap4.min.css">
-    
-  <!-- Modal -->
-  <div class="modal fade" id="myModal"  >
-    <div class="modal-dialog " >
-      <div class="modal-content"  >
-        <div class="modal-header"  >
-          <h5 >NOTIFICACIONES</h5>         
-        </div>
-        
-        @if ($Enviado==1)   
-          <div class="alert alert-success alert-dismissible" data-auto-dismiss="3000">
-       
-            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
-            <ul>
-                <li>El Mensaje Fue enviado</li>
-            </ul>
-         </div>    
-    @endif
-
-          <form method="POST" action="{{ route('NotificarPersonal') }}">
-            @csrf          
-            <table ALIGN="center"  >
-              <tr >                     
-                <div class="card-body">
-                  <div class="form-group">
-                    <label for="Nombre">{{ __('Ingrese Correo Electronico') }}</label><BR>
-                  <select class="Correo" name="Correo" id="Correo"> </select>
-                </div>                                         
-              </div> 
-              </tr>
-              <tr>
-                  <div class="form-group" ALIGN="center">
-                    <button type="submit" class="btn btn-success">{{ __('Enviar Notificaciones') }}</button>       
-                  </div> 
-              </tr>
-            </table>  
-            <input name="registroF" type="hidden" id="registroF" value="{{$registroF}}">         
-        </form> 
-
-        <table >
-          <th>
-            <td>
-              <div class="form-group " ALIGN="center">
-                <a class="btn btn-danger" href="{{route('EntAlmacen')}}">{{ __('Terminar') }} </a> 
-            </div> 
-            </td>             
-          </th>
-        </table>                    
-        </div>
-      </div>
+<div class="inv-cabecera">
+    <div>
+        <h1 class="inv-titulo">{{ __('Notificar al personal') }}</h1>
+        <p class="inv-subtitulo">Envíe un resumen de los productos recibidos en esta entrega.</p>
     </div>
+</div>
 
-  <script>
-    $( document ).ready(function() {
-        $('#myModal').modal({  backdrop: 'static',
-        keyboard: false}).modal('show')            
-    });
-    </script>
-  
+@include('Inventario.partials.pasos', ['pasos' => ['Revisar lo recibido', 'Calificar proveedor', 'Notificar al personal'], 'actual' => 3])
 
-<script type="text/javascript">
-  $('.Correo').select2({
-    theme: "material",
-     language: {
-              noResults: function() {return "Correo no encontrada"; },
-              searching: function(){ return "Buscando......." }
-          },   
-      
-      ajax: {
-          url: '/Ajax/Correos',
-          dataType: 'json',
-          delay: 250,
-          processResults: function (data) {
-              return {
-                  results: $.map(data, function (item) {
-                      return {
-                          text: item.Correo,
-                          id: item.Id
-                      }
-                  })
-              };
-          },
-          cache: true
-      }
-  });
-</script>
- 
+@if ($Enviado == 1)
+    <div class="alert alert-success d-flex align-items-center" role="alert">
+        <i class="fas fa-paper-plane fa-lg mr-3"></i>
+        <div><strong>¡Notificación enviada!</strong><br>Puede enviarla a otra persona o terminar.</div>
+    </div>
+@endif
+
+<div class="row justify-content-center"><div class="col-lg-8">
+<div class="inv-tarjeta-wrap">
+    <form method="POST" action="{{ route('NotificarPersonal') }}" id="formNotificar" class="inv-tarjeta p-3 p-md-4">
+        @csrf
+        <input type="hidden" name="registroF" value="{{ $registroF }}">
+
+        <div class="form-group mb-0">
+            <label for="Correo">{{ __('Correo electrónico del destinatario') }} <span class="inv-campo-obligatorio">*</span></label>
+            <select id="Correo" name="Correo" class="form-control" required></select>
+            <small class="inv-ayuda">Se enviará un resumen de los productos recibidos en esta entrega.</small>
+        </div>
+
+        <div class="inv-acciones inv-acciones--fin mt-4">
+            <a class="btn btn-outline-secondary" href="{{ route('EntAlmacen') }}"><i class="fas fa-flag-checkered mr-1"></i> {{ __('Terminar') }}</a>
+            <button type="submit" class="btn btn-success btn-lg"><i class="fas fa-paper-plane mr-1"></i> {{ __('Enviar notificación') }}</button>
+        </div>
+    </form>
+</div>
+</div></div>
 @endsection
-
-<style>
- .select2-container--material {
-  width: 100% !important; }
-  .select2-container--material .select2-selection--single {
-    background-color: transparent;
-    border: none;
-    border-bottom: 1px solid #ced4da;
-    border-radius: 0;
-    box-shadow: none;
-    box-sizing: content-box;
-    height: auto;
-    margin: 0;
-    outline: none;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }   
-    .select2-container--material .select2-selection--single .select2-selection__placeholder {
-      color: #999; }      
-  .select2-container--material .select2-search--dropdown .select2-search__field {
-    border: none;
-    border-bottom: 1px solid #ced4da;
-    border-radius: 0;
-    outline: none; }      
-  .select2-container--material .select2-results__option--highlighted[aria-selected] {
-    background-color: #3498DB ;
-    color: rgb(0, 0, 0); }
-</style>

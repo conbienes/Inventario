@@ -1,5 +1,9 @@
 @extends("theme.$theme.layout")
 
+@push('css')
+    @include('BonoRegalo.partials._estilos')
+@endpush
+
 @section('content')
     <div class="container-fluid">
         <div class="row justify-content-center">
@@ -89,7 +93,7 @@
                                     {{-- BLOQUE: EMPRESA (solo Razón Social) --}}
                                     <div id="empresaFields"
                                         style="display: none; background: #e8f5e8; padding: 10px; border-radius: 5px;">
-                                        <h5 style="color: green; margin-bottom: 15px;">{{ __('Datos de Empresa') }}</h5>
+                                        <h5 style="color: var(--br-success); margin-bottom: 15px;">{{ __('Datos de Empresa') }}</h5>
                                         <div class="form-group">
                                             <label for="razon_social">{{ __('Razón Social') }} <span
                                                     class="text-danger">*</span></label>
@@ -101,7 +105,7 @@
 
                                     {{-- BLOQUE: PERSONA NATURAL (nombres y apellidos) --}}
                                     <div id="personaFields" style="background: #fff3cd; padding: 10px; border-radius: 5px;">
-                                        <h5 style="color: orange; margin-bottom: 15px;">{{ __('Datos Personales') }}</h5>
+                                        <h5 style="color: var(--br-warning); margin-bottom: 15px;">{{ __('Datos Personales') }}</h5>
                                         <div class="form-group">
                                             <label for="nombre">{{ __('Primer Nombre') }} <span
                                                     class="text-danger">*</span></label>
@@ -148,34 +152,27 @@
             </div>
         </div>
     </div>
-    {{-- JavaScript INLINE para asegurar que funcione --}}
+@endsection
+
+@push('js')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('JavaScript cargado correctamente!');
 
             const tipoDocumentoSelect = document.getElementById('tipo_documento');
             const empresaFields = document.getElementById('empresaFields');
             const personaFields = document.getElementById('personaFields');
 
-            console.log('Elementos encontrados:', {
-                tipoDocumentoSelect: !!tipoDocumentoSelect,
-                empresaFields: !!empresaFields,
-                personaFields: !!personaFields
-            });
 
             function toggleFields() {
-                console.log('Cambio detectado. Valor:', tipoDocumentoSelect.value);
 
                 const isNit = tipoDocumentoSelect.value === 'NIT' || tipoDocumentoSelect.value ===
                     'NIT de otro país';
 
                 if (isNit) {
-                    console.log('Mostrando campos de EMPRESA');
                     empresaFields.style.display = 'block';
                     personaFields.style.display = 'none';
                 } else {
-                    console.log('Mostrando campos de PERSONA NATURAL');
                     empresaFields.style.display = 'none';
                     personaFields.style.display = 'block';
                 }
@@ -187,7 +184,6 @@
             // Asignar evento
             tipoDocumentoSelect.addEventListener('change', toggleFields);
 
-            console.log('Configuración completada');
         });
     </script>
     <script>
@@ -212,7 +208,7 @@
                 // Modal de carga
                 Swal.fire({
                     title: 'Guardando cliente...',
-                    html: '<div style="font-size:0.95em; color:#666;">Sincronizando</div>',
+                    html: '<div style="font-size:0.95em; color:#4B5563;">Sincronizando</div>',
                     allowOutsideClick: false,
                     allowEscapeKey: false,
                     showConfirmButton: false,
@@ -224,4 +220,4 @@
             });
         });
     </script>
-@endsection
+@endpush

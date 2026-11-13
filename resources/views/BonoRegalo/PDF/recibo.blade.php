@@ -29,7 +29,7 @@
     .note-fixed {
       position: fixed;
       left: 18mm; right: 18mm; bottom: 12mm;   /* un poco encima del margen inferior */
-      font-size:10px; text-align:justify;
+      font-size:11px; text-align:left;
     }
   </style>
 </head>
@@ -64,7 +64,7 @@
       <strong>EMAIL:</strong> {{ $cliente->correo }}
     </td>
     <td class="right">
-      <div style="font-size:10px;">{{ $empresa['titulo'] }}</div>
+      <div style="font-size:11px;">{{ $empresa['titulo'] }}</div>
       <div><strong>No. {{ $factura->numero_factura }}</strong></div>
     </td>
   </tr>

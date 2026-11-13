@@ -31,7 +31,9 @@ class ClienteBCSyncService
 
         $nombre = $this->nombreMostrar($c);
 
-        $customer = $c->bc_system_id ? ['ok' => true] : $this->crearCustomer($c, $companyId, $nombre);
+        $customer = $c->bc_system_id
+            ? $this->completarCliente($c, $companyId)
+            : $this->crearCustomer($c, $companyId, $nombre);
         $dimension = $this->crearDimension($c, $companyId, $nombre);
 
         $error = collect([$customer['error'] ?? null, $dimension['error'] ?? null])->filter()->implode(' | ') ?: null;
@@ -84,9 +86,17 @@ class ClienteBCSyncService
                 return ['ok' => false, 'error' => 'BC no devolvió systemId al crear el cliente'];
             }
 
-            $patched = !empty($c->cedula)
-                ? $this->bc->updateCustomerExt($companyId, $systemId, ['NumeroIdentificacion' => (string) $c->cedula])
-                : null;
+            try {
+                $patched = !empty($c->cedula)
+                    ? $this->bc->updateCustomerExt($companyId, $systemId, ['NumeroIdentificacion' => (string) $c->cedula])
+                    : null;
+            } catch (\Throwable $e) {
+                // El cliente ya existe en BC: devolvemos su systemId para guardarlo.
+                // Así el siguiente intento no vuelve a crearlo (antes quedaba duplicado).
+                Log::warning("BC: cliente {$c->id} creado pero sin NumeroIdentificacion: " . $e->getMessage());
+
+                return ['ok' => false, 'error' => $e->getMessage(), 'final' => $created];
+            }
 
             // Si el PATCH devolvió el objeto completo lo preferimos (trae el etag actualizado)
             $final = is_array($patched) && isset($patched['@odata.etag']) ? $patched : $created;
@@ -94,6 +104,30 @@ class ClienteBCSyncService
             return ['ok' => true, 'final' => $final];
         } catch (\Throwable $e) {
             Log::warning("BC: no se pudo crear el cliente {$c->id}: " . $e->getMessage());
+
+            return ['ok' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * El cliente ya existe en BC (se creó en un intento anterior). Si quedó sin NumeroIdentificacion
+     * porque falló el PATCH, se completa ahora; antes se daba por bueno y quedaba marcado como cargado.
+     */
+    private function completarCliente(ClienteBonoR $c, string $companyId): array
+    {
+        if ($c->cargado || empty($c->cedula)) {
+            return ['ok' => true];
+        }
+
+        try {
+            $patched = $this->bc->updateCustomerExt($companyId, $c->bc_system_id, ['NumeroIdentificacion' => (string) $c->cedula]);
+
+            return [
+                'ok' => true,
+                'final' => is_array($patched) && isset($patched['@odata.etag']) ? $patched : null,
+            ];
+        } catch (\Throwable $e) {
+            Log::warning("BC: no se pudo completar NumeroIdentificacion del cliente {$c->id}: " . $e->getMessage());
 
             return ['ok' => false, 'error' => $e->getMessage()];
         }

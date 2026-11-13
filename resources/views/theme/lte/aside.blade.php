@@ -1,4 +1,4 @@
-<aside class="main-sidebar elevation-4" style="background-color:#005484">
+<aside class="main-sidebar sidebar-dark-primary elevation-4">
     @php
         $user = Auth::user();
 

@@ -1,86 +1,83 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
 
 @section('content')
+@php($item = $EditInven->first())
 
-<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Editar cantidad del inventario</h3>
+            </div>
 
-  <!-- Modal -->
-  <div class="modal fade" id="myModal"  >
-    <div class="modal-dialog " >
-      <div class="modal-content"  >
-        <div class="modal-header"  >
-          <h5>EDITAR CANTIDAD DEL INVENTARIO</h5>         
+            @if (! $item)
+                <div class="card-body">
+                    <p class="inv-texto-2 mb-0">No se encontró el registro de inventario.</p>
+                </div>
+                <div class="card-footer inv-acciones inv-acciones--fin">
+                    <a class="btn btn-outline-secondary" href="{{ route('Inventario') }}">Volver</a>
+                </div>
+            @else
+                <div class="card-body border-bottom">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4 inv-texto-2">Empresa</dt>
+                        <dd class="col-sm-8 inv-texto">{{ $item->Division }}</dd>
+                        <dt class="col-sm-4 inv-texto-2">Almacén</dt>
+                        <dd class="col-sm-8 inv-texto">{{ $item->Almacen }}</dd>
+                        <dt class="col-sm-4 inv-texto-2">Categoría</dt>
+                        <dd class="col-sm-8 inv-texto">{{ $item->Categoria }}</dd>
+                        <dt class="col-sm-4 inv-texto-2">Producto</dt>
+                        <dd class="col-sm-8 inv-texto font-weight-bold">{{ $item->Producto }}</dd>
+                        <dt class="col-sm-4 inv-texto-2">Cantidad actual</dt>
+                        <dd class="col-sm-8 inv-texto font-weight-bold">{{ $item->Cantidades }}</dd>
+                    </dl>
+                </div>
+
+                <form method="POST" action="{{ route('actualizar_EditInven') }}">
+                    @csrf
+                    <input type="hidden" name="Id" value="{{ $item->Id }}">
+                    <div class="card-body">
+                        @if ($errors->any())
+                            <div class="alert alert-danger mb-3">
+                                <ul class="mb-0 pl-3">
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
+                        <div class="form-group">
+                            <label for="Cantidad">Diferencia a registrar <span class="inv-campo-obligatorio">*</span></label>
+                            <input type="number" id="Cantidad" name="Cantidad" step="any" required
+                                   class="form-control @error('Cantidad') is-invalid @enderror"
+                                   value="{{ old('Cantidad') }}" placeholder="Ingrese solo la diferencia (puede ser negativa)" autocomplete="off">
+                            <small class="form-text inv-ayuda">Se suma a la cantidad actual. Use un valor negativo para restar.</small>
+                            @error('Cantidad')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="form-group mb-0">
+                            <label for="Descripcion">Motivo de la modificación <span class="inv-campo-obligatorio">*</span></label>
+                            <textarea id="Descripcion" name="Descripcion" rows="3" maxlength="255" required
+                                      class="form-control @error('Descripcion') is-invalid @enderror"
+                                      placeholder="Describa el motivo del cambio">{{ old('Descripcion') }}</textarea>
+                            @error('Descripcion')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="card-footer inv-acciones inv-acciones--fin">
+                        <a class="btn btn-outline-secondary" href="{{ route('Inventario') }}">Cancelar</a>
+                        <button type="submit" class="btn btn-success">Actualizar</button>
+                    </div>
+                </form>
+            @endif
         </div>
-        @if ($errors->any())
-    <div class="alert alert-danger">
-        <ul>
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
     </div>
-@endif
-@foreach($EditInven as $item)  
-        <form method="post" action="{{ route('actualizar_EditInven') }}">
-            @csrf 
-            <div class="card-body"  >            
-                        <input type="hidden" class="form-control" name="Id" value={{$item->Id}} >
-        <table class="table">
-          <tr ALIGN="center">               
-                    <div class="form-group"  ALIGN="center">
-                        <label for="Division">{{$item->Division}} </label>           
-                      </div>                   
-            </tr>
-            <tr ALIGN="center">
-                <td>                  
-                        <label for="Almacen">{{$item->Almacen}} </label>                           
-                </td>               
-            </tr>
-            <tr ALIGN="center">
-                <td>                    
-                        <label for="Categoria">{{$item->Categoria}} </label>                              
-                </td>               
-            </tr>
-            <tr ALIGN="center">
-                <td>                   
-                        <label for="Producto">{{$item->Producto}}</label>                             
-                </td>               
-            </tr>
-            <tr ALIGN="center"> 
-              <td>
-                  <textarea class="form-group" name="Descripcion"  placeholder="Motivo de la modificación" autocomplete="off" rows="5" size=40 style="width:200px" >{{old('Descripcion')}}</textarea>                      
-              </td>
-            </tr>
-            <tr ALIGN="center">
-              <td>       
-                  <label for="Producto">{{"Cantidad Actual: $item->Cantidades"}} </label><br>    
-                  <input class="form-group" placeholder="Ingresa solo la diferencia " value="{{ old('Cantidad') }}" autocomplete="off" size=40 style="width:200px" name="Cantidad" >    
-              </td>
-            </tr>
-        </table>                                   
-          <table class="table" >
-            <tr ALIGN="center">
-             <td >               
-               <button type="submit" class="btn btn-success">{{ __('Actualizar') }}</button>                       
-            </td>
-                 <td>
-                   <div class="form-group ">
-                    <a class="btn btn-danger" href="javascript: history.go(-1)">{{ __('Cancelar') }} </a> 
-                   </div> 
-                 </td>  
-           </tr>
-         </table> 
-        </div>  
-        </form>
-        @endforeach
-      </div>
-    </div>
-  </div>
-        <script>
-            $( document ).ready(function() {
-                $('#myModal').modal({  backdrop: 'static',
-                keyboard: false}).modal('show')            
-            });
-            </script>
+</div>
 @endsection

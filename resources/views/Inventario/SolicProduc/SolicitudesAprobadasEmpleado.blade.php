@@ -1,64 +1,66 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
 
 @section('content')
+@php
+    $cabecera = $pedidoinventario->first();
+    $completa = $pedidoinventario->filter(fn ($l) => (int) $l->CantAprobadas !== (int) $l->Cantidad)->isEmpty();
+@endphp
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>    
-  <!-- Modal -->
-  <div class="modal fade" id="myModal"  >
-    <div class="modal-dialog modal-lg" >
-      <div class="modal-content"  >
-        <div class="modal-header"  >
-         <h5 > <strong>Productos Aprobados</strong></h5>      
-        </div>
-        <div class="card-body">
-            <table class="table-striped table-bordered" >                       
-                <thead>
-                  <tr ALIGN="center">
-                    <th width="200"scope="col">Producto</th>
-                    <th width="200"scope="col">Fecha Solicitud</th>
-                    <th width="200"scope="col">Cantidad Aprobadas</th>
-                    <th width="200"scope="col">Cantidad Solicitadas</th>
-                    <th width="200"scope="col">Comentario</th>
-                  </tr>
-                </thead>            
-                @foreach ($pedidoinventario as $item)
-                    <tr ALIGN="center">
-                        <td width="80"> <font size=2>{{$item->NombreProduc}}</font></td> 
-                        <td width="80"> <font size=2>{{$item->Fecha}}</font></td>                                                                                                                        
-                          @if ($item->CantAprobadas==$item->Cantidad)
-                            <td width="80"> <font size=3 style="color: green"> {{$item->CantAprobadas}} </font></td>  
-                          @else
-                            <td width="80"> <font size=3 style="color: red"> {{$item->CantAprobadas}} </font></td>  
-                          @endif
-                        <td width="80"> <font size=3>{{$item->Cantidad}}</font></td>  
-                        <td width="80"> <font size=2>{{$item->Comentario}}</font></td>                      
-                    </tr>                   
-                  @endforeach                                                                                                      
-            </table> 
-            <table class="table" style="width : 50px; heigth : 10px" ALIGN="center" >                                     
-                    <td>
-                      <div class="form-group">
-                       <a class="btn btn-danger" href="javascript:history.back()">{{ __('Cancelar') }} </a> 
-                      </div> 
-                    </td>              
-             </table> 
-        </div>  
-      </div>
+<div class="inv-cabecera">
+    <div>
+        <h1 class="inv-titulo">Detalle de la solicitud aprobada #{{ $cabecera->IdSolicitud }}</h1>
+        <p class="inv-subtitulo">Resultado de la aprobación de los productos solicitados.</p>
     </div>
-  </div>
+    <div class="inv-acciones">
+        @if (tienePermisoModulo(auth()->id(), 1, [1, 2]))
+            <a class="btn btn-outline-secondary" href="{{ route('TotalAprobadas') }}"><i class="fas fa-arrow-left"></i> Volver</a>
+        @else
+            <a class="btn btn-outline-secondary" href="{{ route('Aprobadas') }}"><i class="fas fa-arrow-left"></i> Volver</a>
+        @endif
+    </div>
+</div>
 
-    <script>
-      $( document ).ready(function() {
-          $('#myModal').modal({  backdrop: 'static',
-          keyboard: false}).modal('show')            
-      });
-  </script>
+<div class="inv-tarjeta-wrap mb-3">
+    <dl class="row inv-tarjeta p-3 p-md-4 mb-0">
+        <dt class="col-sm-3">Solicitante</dt>
+        <dd class="col-sm-9">{{ $cabecera->NombreEmp }} {{ $cabecera->ApellidoEmp }}</dd>
+        <dt class="col-sm-3">Área</dt>
+        <dd class="col-sm-9">{{ $cabecera->AreaS }}</dd>
+        <dt class="col-sm-3">Aprobado por</dt>
+        <dd class="col-sm-9">{{ $cabecera->NombreAprueba ? $cabecera->NombreAprueba . ' ' . $cabecera->ApellidosAprueba : '-' }}</dd>
+        <dt class="col-sm-3">Fecha de aprobación</dt>
+        <dd class="col-sm-9">{{ $cabecera->Fecha ?? '-' }}</dd>
+        <dt class="col-sm-3">Resultado</dt>
+        <dd class="col-sm-9">{{ $completa ? 'Entrega completa' : 'Entrega parcial' }}</dd>
+        <dt class="col-sm-3">Estado</dt>
+        <dd class="col-sm-9">@include('Inventario.SolicProduc._estado', ['estado' => $cabecera->Estado])</dd>
+    </dl>
+</div>
+
+<div class="inv-tabla-wrap">
+    <div class="table-responsive">
+        <table class="table inv-tabla" data-filtro-rapido>
+            <thead>
+                <tr>
+                    <th scope="col">Producto</th>
+                    <th scope="col" class="num">Cantidad solicitada</th>
+                    <th scope="col" class="num">Cantidad aprobada</th>
+                    <th scope="col">Comentario</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($pedidoinventario as $item)
+                    <tr>
+                        <td>{{ $item->NombreProduc }}</td>
+                        <td class="num">{{ $item->Cantidad }}</td>
+                        <td class="num">{{ $item->CantAprobadas ?? '-' }}</td>
+                        <td>{{ $item->Comentario }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
 @endsection
-
-
-
-
-
-
-
-

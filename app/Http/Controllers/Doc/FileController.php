@@ -50,7 +50,6 @@ class FileController extends Controller
         }
 
         foreach ($items as $item) {
-            dd($item);
             InmuebleCliente::updateOrCreate(
                 ['sharepoint_id' => data_get($item, 'id')], // Condición para buscar
                 [
@@ -212,11 +211,13 @@ class FileController extends Controller
         }
     }
 
-    public function SiimComercial($idInmueble = null, Request $request, $email)
+    public function SiimComercial($idInmueble = null, Request $request, $email = null)
     {
         try {
             // Buscar el empleado por el correo
-            $empleado = Usuario::where('Correo', $email)->first();
+            // La identidad sale de la sesión autenticada, nunca del correo de la URL
+            $empleado = \Illuminate\Support\Facades\Auth::user();
+            $email = $empleado?->Correo;
 
             if ($empleado) {
                 // Guardar el correo en la sesión
@@ -282,12 +283,14 @@ class FileController extends Controller
         }
     }
 
-    public function SiimExpInmueble($idInmueble = null, Request $request, $email)
+    public function SiimExpInmueble($idInmueble = null, Request $request, $email = null)
     {
         try {
 
             // Buscar el empleado por el correo
-            $empleado = Usuario::where('Correo', $email)->first();
+            // La identidad sale de la sesión autenticada, nunca del correo de la URL
+            $empleado = \Illuminate\Support\Facades\Auth::user();
+            $email = $empleado?->Correo;
 
             if ($empleado) {
                 // Guardar el correo en la sesión

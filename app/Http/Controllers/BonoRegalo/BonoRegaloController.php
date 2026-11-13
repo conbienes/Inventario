@@ -215,7 +215,13 @@ class BonoRegaloController extends Controller
         // Una línea por tarjeta vendida
         $tarjetas = $facturas->flatMap->items
             ->filter(fn($it) => $it->tarjeta)
-            ->map(fn($it) => ['numero' => $it->tarjeta->numero, 'valor' => (float) $it->tarjeta->valor])
+            // Número completo solo para administradores; el resto ve los últimos 4 dígitos
+            ->map(fn($it) => [
+                'numero' => \Illuminate\Support\Facades\Gate::allows('bono-regalo.admin')
+                    ? $it->tarjeta->numero
+                    : '•••• ' . substr((string) $it->tarjeta->numero, -4),
+                'valor' => (float) $it->tarjeta->valor,
+            ])
             ->values();
 
         // Medios de pago (nombre -> total y cantidad)

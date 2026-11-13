@@ -1,70 +1,72 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
 
 @section('content')
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Editar proveedor</h3>
+            </div>
 
-<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
+            <form method="POST" action="{{ route('actualizar_Proveedor') }}">
+                @csrf
+                <input type="hidden" name="Id" value="{{ $Proveedor->Id }}">
+                <div class="card-body">
+                    @if ($errors->any())
+                        <div class="alert alert-danger mb-3">
+                            <ul class="mb-0 pl-3">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
 
-  <!-- Modal -->
-  <div class="modal fade" id="myModal"  >
-    <div class="modal-dialog " >
-      <div class="modal-content"  >
-        <div class="modal-header"  >
-          <h5 >EDITAR PROVEEDOR</h5>         
+                    <div class="form-group">
+                        <label for="Nit">NIT <span class="inv-campo-obligatorio">*</span></label>
+                        <input type="text" id="Nit" name="Nit" inputmode="numeric" maxlength="15"
+                               class="form-control @error('Nit') is-invalid @enderror"
+                               value="{{ old('Nit', $Proveedor->Nit) }}" autocomplete="off" required>
+                        @error('Nit')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="form-group">
+                        <label for="Nombre">Razón social <span class="inv-campo-obligatorio">*</span></label>
+                        <input type="text" id="Nombre" name="Nombre" maxlength="255"
+                               class="form-control @error('Nombre') is-invalid @enderror"
+                               value="{{ old('Nombre', $Proveedor->Nombre) }}" autocomplete="off" required>
+                        @error('Nombre')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="form-group">
+                        <label for="Telefono">Teléfono</label>
+                        <input type="text" id="Telefono" name="Telefono" maxlength="30"
+                               class="form-control" value="{{ old('Telefono', $Proveedor->Telefono) }}" autocomplete="off">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="Correo">Correo electrónico</label>
+                        <input type="email" id="Correo" name="Correo" maxlength="150"
+                               class="form-control @error('Correo') is-invalid @enderror"
+                               value="{{ old('Correo', $Proveedor->Correo) }}" autocomplete="off">
+                        @error('Correo')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="card-footer inv-acciones inv-acciones--fin">
+                    <a href="{{ route('Proveedor') }}" class="btn btn-outline-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-success">Actualizar</button>
+                </div>
+            </form>
         </div>
-        @if ($errors->any())
-    <div class="alert alert-danger">
-        <ul>
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
     </div>
-@endif
-        <form method="post" action="{{ route('actualizar_Proveedor',['id'=>$Proveedor->Id]) }}">
-            @csrf 
-      <div class="card-body">
-        <div class="form-group">
-          <input type="hidden" class="form-control" name="Id" value={{$Proveedor->Id}} >
-        </div>
-        <div class="form-group">
-          <label for="Nit">{{ __('Nit') }}</label>
-          <input type="text" class="form-control" name="Nit" value="{{$Proveedor->Nit}} " autocomplete="off"  required>
-        </div>
-        <div class="form-group">
-          <label for="Nombre">{{ __('Nombre') }}</label>
-          <input type="Nombre" class="form-control" name="Nombre" value="{{$Proveedor->Nombre}} " autocomplete="off"  required>
-        </div>
-        <div class="form-group">
-          <label for="Nit">{{ __('Telefono') }}</label>
-          <input type="text" class="form-control" name="Telefono" value="{{$Proveedor->Telefono}} " autocomplete="off"  required>
-        </div>
-        <div class="form-group">
-          <label for="Correo">{{ __('Correo') }}</label>
-          <input type="Correo" class="form-control" name="Correo" value="{{$Proveedor->Correo}} " autocomplete="off"  required>
-        </div>
-          <table class="table" >
-            <tr ALIGN="center">
-             <td >
-               <div class="form-group" >
-               <button type="submit" class="btn btn-success">{{ __('Actualizar') }}</button>       
-               </div> 
-            </td>
-                 <td>
-                   <div class="form-group ">
-                    <a class="btn btn-danger" href="{{route('Proveedor')}}">{{ __('Cancelar') }} </a> 
-                   </div> 
-                 </td>  
-           </tr>
-         </table>   
-        </form>
-      </div>
-    </div>
-  </div>
-        <script>
-            $( document ).ready(function() {
-                $('#myModal').modal({  backdrop: 'static',
-                keyboard: false}).modal('show')            
-            });
-            </script>
+</div>
 @endsection

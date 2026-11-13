@@ -129,6 +129,27 @@ class FacturaBCService
     /** Envía una línea; si BC la acepta queda registrada para no repetirla. Devuelve el error o null. */
     private function enviarLinea(FacturaBonoR $f, string $clave, float $importe, string $companyId, array $payload): ?string
     {
+        // Si la factura ya tuvo un intento, una línea pudo quedar guardada en BC aunque la respuesta
+        // se perdiera (timeout, 5xx). Antes de reenviar, se busca en BC; si no se puede comprobar, no se envía.
+        if ((int) $f->bc_intentos > 0) {
+            try {
+                $existente = $this->bc->findCustomJournalLine($companyId, [
+                    'DocumentoExterno' => $payload['DocumentoExterno'],
+                    'NumeroCuenta' => $payload['NumeroCuenta'],
+                    'Importe' => $payload['Importe'],
+                    'Description' => $payload['Description'],
+                ]);
+            } catch (\Throwable $e) {
+                return 'No se pudo verificar en BC si la línea ya existe; no se reenvía para evitar duplicados: ' . $e->getMessage();
+            }
+
+            if ($existente) {
+                $this->marcarEnviada($f, $clave, $importe, $existente['systemId'] ?? null);
+
+                return null;
+            }
+        }
+
         try {
             $resp = $this->bc->createCustomJournalLine($companyId, $payload);
         } catch (\Throwable $e) {
@@ -144,16 +165,22 @@ class FacturaBCService
             return $resp['error'] ?? ($resp['data']['error']['message'] ?? 'Error desconocido en BC');
         }
 
-        DB::table('bc_lineas_enviadas')->insert([
-            'factura_id' => $f->id,
-            'clave' => $clave,
-            'importe' => $importe,
-            'bc_system_id' => $resp['data']['systemId'] ?? null,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $this->marcarEnviada($f, $clave, $importe, $resp['data']['systemId'] ?? null);
 
         return null;
+    }
+
+    private function marcarEnviada(FacturaBonoR $f, string $clave, float $importe, ?string $bcSystemId): void
+    {
+        DB::table('bc_lineas_enviadas')->updateOrInsert(
+            ['factura_id' => $f->id, 'clave' => $clave],
+            [
+                'importe' => $importe,
+                'bc_system_id' => $bcSystemId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
     }
 
     /** Código de auditoría: tipo del método de pago, o MULMEDPAG si hubo varios */

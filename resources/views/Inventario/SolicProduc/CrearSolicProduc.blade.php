@@ -1,270 +1,294 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
+
+@push('css')
+    <link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2/css/select2.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/lte/plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css') }}">
+    <style>
+        .inv-page .swal2-styled.swal2-confirm { background-color: var(--inv-primario, #005484); }
+    </style>
+@endpush
+
+@push('js')
+    <script src="{{ asset('assets/lte/plugins/select2/js/select2.full.min.js') }}"></script>
+    <script src="{{ asset('assets/lte/plugins/sweetalert2/sweetalert2.min.js') }}"></script>
+@endpush
 
 @section('content')
+    @php
+        $solicitante = auth()->user();
+        $areaNombre = optional($Area->first())->nombre;
+    @endphp
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@9.17.2/dist/sweetalert2.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/sweetalert2@9.17.2/dist/sweetalert2.min.css">
-
-    <div class="card card-primary">
-        <div class="card-header">
-            <h3 class="card-title">{{ __('SOLICITAR PRODUCTO') }}</h3>
+    <div class="inv-cabecera">
+        <div>
+            <h1 class="inv-titulo">Nueva solicitud de productos</h1>
+            <p class="inv-subtitulo">Agregue los productos de su división y envíe la solicitud para aprobación.</p>
         </div>
-        @if ($errors->any())
-            <div class="alert alert-danger">
-                <ul>
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
+        <div class="inv-acciones">
+            <a href="{{ route('InicioInventario') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Volver</a>
+        </div>
+    </div>
+
+    @if ($errors->any())
+        <div class="alert alert-danger" role="alert">
+            <strong><i class="fas fa-exclamation-triangle"></i> Revise la solicitud:</strong>
+            <ul class="mb-0 mt-1">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <form method="POST" action="{{ route('actualizar_SolicProduc') }}" id="formSolicitud" novalidate>
+        @csrf
+
+        {{-- 1. Datos del solicitante (desde la sesión, no editables) --}}
+        <div class="inv-tarjeta-wrap mb-3">
+            <div class="inv-tarjeta p-3 p-md-4">
+                <h2 class="h5 font-weight-bold mb-3">1. Datos del solicitante</h2>
+                <div class="row">
+                    <div class="form-group col-md-6">
+                        <label for="solicitante">Solicitante</label>
+                        <input type="text" id="solicitante" class="form-control" readonly
+                            value="{{ trim($solicitante->nombre . ' ' . $solicitante->apellidos) }}">
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="area">Área solicitante</label>
+                        <input type="text" id="area" class="form-control" readonly
+                            value="{{ $areaNombre ?? 'Sin área asignada' }}">
+                    </div>
+                </div>
             </div>
-        @endif
-        <form>
-            <div class="card-body">
-                <table>
-                    <tr>
-                        <td width="500">
-                            @csrf
-                            <div class="form-group">
-                                @foreach ($Empleado as $item)
-                                    <div class="form-group">
-                                        <label for="Nombre">{{ __('Solicitante') }}</label>
-                                        <input type="text" readonly="readonly" class="form-control" name="Solicitante"
-                                            autocomplete="off" autofocus value="{{ $item->nombre }} {{ $item->apellidos }}">
-                                    </div>
-                                    <input id="nombre" type="hidden" class="form-control" type="text"
-                                        value={{ $item->id }}>
-                                    <div class="form-group">
-                                        <input type="hidden" required class="form-control" name="id_area"
-                                            value={{ $item->id_area }}>
-                                    </div>
-                                @endforeach
+        </div>
 
-                                @foreach ($Area as $item)
-                                    <div class="form-group">
-                                        <label for="Area">{{ __('Area Solicitante') }}</label>
-                                        <input type="text" readonly="readonly" class="form-control" name="Area"
-                                            autocomplete="off" value="{{ $item->nombre }}">
-                                    </div>
-                                @endforeach
+        {{-- 2. Productos --}}
+        <div class="inv-tarjeta-wrap mb-3">
+            <div class="inv-tarjeta p-3 p-md-4">
+                <h2 class="h5 font-weight-bold mb-3">2. Productos</h2>
+                <div class="row align-items-end">
+                    <div class="form-group col-md-7">
+                        <label for="selectProducto">Producto</label>
+                        <select id="selectProducto" class="form-control w-100"></select>
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label for="inputCantidad">Cantidad</label>
+                        <input type="number" id="inputCantidad" class="form-control" min="1" step="1" max="100000" inputmode="numeric">
+                    </div>
+                    <div class="form-group col-md-2">
+                        <button type="button" id="btnAgregar" class="btn btn-primary btn-block">
+                            <i class="fas fa-plus"></i> Agregar
+                        </button>
+                    </div>
+                </div>
+                <p class="inv-ayuda mb-3">Escriba al menos 2 letras del nombre. Se muestran los productos de su división con su existencia. Pulse Enter en la cantidad para agregar.</p>
 
-                                <label>Producto</label>
-                                <select class="Inventario" style="width: 100%" required name="Inventario" id="Inventario"
-                                    autocomplete="off"></select>
-                                <br><br>
-                                <label>Cantidad</label><br>
-                                <input type="number" id="Cantidad" class="form-control" type="text"
-                                    autocomplete="off"><br>
+                <div class="inv-tabla-wrap">
+                    <div class="table-responsive">
+                        <table class="table inv-tabla mb-0" id="tablaLineas">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Producto</th>
+                                    <th scope="col" class="num">Cantidad</th>
+                                    <th scope="col" class="text-center">Quitar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lineas"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <p class="inv-vacio mt-2" id="mensajeVacio">Aún no ha agregado productos.</p>
+            </div>
+        </div>
 
-                                <button id="adicionar" class="btn btn-success" type="button">+ Agregar
-                                    Producto</button>
-                            </div>
-                        </td>
-                    </tr>
-        </form>
+        {{-- 3. Fecha y observaciones --}}
+        <div class="inv-tarjeta-wrap mb-3">
+            <div class="inv-tarjeta p-3 p-md-4">
+                <h2 class="h5 font-weight-bold mb-3">3. Entrega y observaciones</h2>
+                <div class="row">
+                    <div class="form-group col-md-4">
+                        <label for="Fecha">Fecha tentativa de entrega <span class="inv-campo-obligatorio">*</span></label>
+                        <input type="date" id="Fecha" name="Fecha" class="form-control"
+                            min="{{ now()->toDateString() }}" value="{{ old('Fecha') }}" required>
+                    </div>
+                    <div class="form-group col-md-8">
+                        <label for="Observaciones">Observaciones <span class="inv-ayuda">(opcional)</span></label>
+                        <textarea id="Observaciones" name="Observaciones" class="form-control" rows="2" maxlength="500">{{ old('Observaciones') }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        </table>
-        <form method="POST" action="{{ route('actualizar_SolicProduc') }}">
-            @csrf
-            <table>
-                <tr>
-                    <td>
-                        <div class="form-group">
-                            <label for="Fecha">{{ __('Fecha Tentativa') }}</label>
-                            <input type="date" class="form-control" name="Fecha" autocomplete="off" required>
-                        </div>
-                    </td>
-                    <td width="50">
-                        <br>
-                    </td>
-                    <td width="500" ALIGN="center">
-                        <div class="form-group">
-                            <label>Observaciones</label><br>
-                            <textarea name="Observaciones" rows="2" cols="50" name="Observaciones" id="Observaciones"></textarea>
-                        </div>
-                    </td>
-                </tr>
-            </table>
-            @foreach ($Empleado as $item)
-                <input name="IdSolicitante" type="hidden" class="form-control" type="text" value={{ $item->id }}>
-                <input type="hidden" required class="form-control" name="id_area" value={{ $item->id_area }}>
-            @endforeach
-            <label> </label>
-            <strong> Elementos en la Tabla:</strong>
+        <div class="inv-acciones inv-acciones--fin">
+            <a href="{{ route('InicioInventario') }}" class="btn btn-outline-secondary">Cancelar</a>
+            <button type="submit" id="btnEnviar" class="btn btn-success" disabled>
+                <i class="fas fa-paper-plane"></i> Enviar solicitud
+            </button>
+        </div>
+    </form>
 
-            <div id="adicionados"></div>
-
-
-            <table id="mytable" class="table table-striped table-bordered">
-                <tr>
-                    <th width="500">Nombre</th>
-                    <th width="50">Cantidad</th>
-                    <th width="100">Eliminar</th>
-                </tr>
-            </table>
-            <table class="table">
-                <tr ALIGN="center">
-                    <td>
-                        <div class="form-group">
-                            <button type="submit" class="btn btn-success">{{ __('Crear') }}</button>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="form-group ">
-                            <a class="btn btn-danger" href="{{ route('InicioInventario') }}">{{ __('Cancelar') }}
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-            </table>
-        </form>
-    </div>
-    </div>
-
-
-
+    @push('js')
     <script>
-        $('#Inventario').focus();
-        $('#Inventario').prop('disabled', false);
-
-
-        $('.Inventario').select2({
-            theme: "classic",
-            language: {
-                noResults: function() {
-                    return "Producto no encontrado";
-                },
-                searching: function() {
-                    return "Buscando......."
-                }
-            },
-            ajax: {
-                url: '/Ajax/Inventario',
-                dataType: 'json',
-                delay: 250,
-                processResults: function(data) {
-                    console.log(data);
-                    return {
-                        results: $.map(data, function(item) {
-                            return {
-                                text: item.Nombre + " | Cant: " + item.Cantidad,
-                                id: item.Id
-                            }
-                        })
-                    };
-                },
-                cache: true
+        @php
+            // Si el envío falla la validación, Laravel devuelve los productos escritos: se reconstruyen en la tabla
+            $previos = [];
+            $idsPrevios = (array) old('IdInventario', []);
+            $cantPrevias = (array) old('Cantidad', []);
+            $nombresPrevios = (array) old('NombreLinea', []);
+            foreach ($idsPrevios as $i => $idPrevio) {
+                $previos[] = [
+                    'id' => (string) $idPrevio,
+                    'nombre' => (string) ($nombresPrevios[$i] ?? ('Producto ' . $idPrevio)),
+                    'cantidad' => (int) ($cantPrevias[$i] ?? 1),
+                ];
             }
-        });
-    </script>
+        @endphp
+        (function () {
+            const MAX_LINEAS = 50;
+            const previos = @json($previos);
+            const lineas = new Map(); // idInventario -> { nombre, cantidad }
+            const $tbody = document.getElementById('lineas');
+            const $vacio = document.getElementById('mensajeVacio');
+            const $btnEnviar = document.getElementById('btnEnviar');
+            const $form = document.getElementById('formSolicitud');
+            let productoActual = null; // { id, nombre }
 
+            function alerta(texto) {
+                if (window.Swal) {
+                    Swal.fire({ icon: 'warning', title: texto, confirmButtonText: 'Entendido' });
+                } else {
+                    window.alert(texto);
+                }
+            }
 
-    <script>
-        var i = 1; //contador para asignar id al boton que borrara la fila
+            function escapar(texto) {
+                const d = document.createElement('div');
+                d.textContent = texto;
+                return d.innerHTML;
+            }
 
-        $(document).ready(function() {
-            //obtenemos el valor de los input
+            function render() {
+                $tbody.innerHTML = '';
+                lineas.forEach(function (linea, id) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML =
+                        '<td>' +
+                            '<input type="hidden" name="IdInventario[]" value="' + id + '">' +
+                            '<input type="hidden" name="NombreLinea[]" value="' + escapar(linea.nombre).replace(/"/g, '&quot;') + '">' +
+                            escapar(linea.nombre) +
+                        '</td>' +
+                        '<td class="num">' +
+                            '<input type="hidden" name="Cantidad[]" value="' + linea.cantidad + '">' +
+                            linea.cantidad +
+                        '</td>' +
+                        '<td class="text-center">' +
+                            '<button type="button" class="btn btn-sm btn-outline-danger" data-quitar="' + id + '">Quitar</button>' +
+                        '</td>';
+                    $tbody.appendChild(tr);
+                });
+                $vacio.style.display = lineas.size ? 'none' : '';
+                $btnEnviar.disabled = lineas.size === 0;
+            }
 
-            $('#adicionar').click(function() {
-                var nombre = document.getElementById("nombre").value;
-                var Inventario = document.getElementById("Inventario").value;
-                var Cantidad = document.getElementById("Cantidad").value;
-                var nuevaCategoria = $("select option:selected").text();
+            $('#selectProducto').select2({
+                theme: 'bootstrap4',
+                width: '100%',
+                placeholder: 'Buscar producto…',
+                language: {
+                    noResults: function () { return 'Producto no encontrado'; },
+                    searching: function () { return 'Buscando…'; },
+                    inputTooShort: function () { return 'Escriba al menos 2 letras'; }
+                },
+                minimumInputLength: 2,
+                ajax: {
+                    url: '{{ url('/Ajax/Inventario') }}',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) { return { q: params.term }; },
+                    processResults: function (data) {
+                        return {
+                            results: (data || []).map(function (p) {
+                                return {
+                                    id: p.Id,
+                                    text: p.Nombre + (p.Codigo ? ' (' + p.Codigo + ')' : '') + ' — existencia: ' + p.Cantidad,
+                                    nombre: p.Nombre + (p.Codigo ? ' (' + p.Codigo + ')' : '')
+                                };
+                            })
+                        };
+                    },
+                    cache: true
+                }
+            }).on('select2:select', function (e) {
+                productoActual = { id: String(e.params.data.id), nombre: e.params.data.nombre };
+                document.getElementById('inputCantidad').focus();
+            }).on('select2:clear', function () {
+                productoActual = null;
+            });
 
-                if (Inventario == null || Inventario.length == 0 || isNaN(Inventario)) {
+            document.getElementById('inputCantidad').addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('btnAgregar').click();
+                }
+            });
 
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Debe ingresar un producto'
-                    })
-                    return false;
+            document.getElementById('btnAgregar').addEventListener('click', function () {
+                const cantidadTxt = document.getElementById('inputCantidad').value.trim();
+                const cantidad = Number(cantidadTxt);
+
+                if (!productoActual) {
+                    return alerta('Seleccione un producto.');
+                }
+                if (!cantidadTxt || !Number.isInteger(cantidad) || cantidad < 1) {
+                    return alerta('La cantidad debe ser un número entero de al menos 1.');
+                }
+                if (cantidad > 100000) {
+                    return alerta('La cantidad máxima por producto es 100.000.');
+                }
+                if (lineas.has(productoActual.id)) {
+                    return alerta('Ese producto ya está en la solicitud. Quítelo para cambiar la cantidad.');
+                }
+                if (lineas.size >= MAX_LINEAS) {
+                    return alerta('Una solicitud admite hasta ' + MAX_LINEAS + ' productos.');
                 }
 
-                if (Cantidad == null || Cantidad.length == 0 || isNaN(Cantidad)) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Debe ingresar una Cantidad'
-                    })
-                    return false;
+                lineas.set(productoActual.id, { nombre: productoActual.nombre, cantidad: cantidad });
+                productoActual = null;
+                $('#selectProducto').val(null).trigger('change');
+                document.getElementById('inputCantidad').value = '';
+                render();
+            });
+
+            $tbody.addEventListener('click', function (e) {
+                const boton = e.target.closest('[data-quitar]');
+                if (boton) {
+                    lineas.delete(boton.getAttribute('data-quitar'));
+                    render();
                 }
-
-
-
-
-                var fila = '<tr id="row' + i + '"><input type="hidden"  name="IdInventario[]" value="' +
-                    Inventario + '" ><td> <label> <font size=2> ' + nuevaCategoria +
-                    '</label><input type="hidden"  name="Inventario" value="' + nuevaCategoria +
-                    '" ></td><td><input type="number"  style="width:50" name="Cantidad[]" value="' +
-                    Cantidad +
-                    '" ></td><td><button type="button" name="btn_remove" id="' + i +
-                    '" class="btn btn-danger btn_remove">Quitar</button></td></tr>';
-                i++;
-
-                $('#mytable tr:first').after(fila);
-                $("#adicionados").text(
-                    ""); //esta instruccion limpia el div adicionamos para que no se vayan acumulando
-                var nFilas = $("#mytable tr").length;
-                $("#adicionados").append(nFilas - 1);
-                //le resto 1 para no contar la fila del header
-                document.getElementById("Inventario").value = "";
-                document.getElementById("Cantidad").value = "";
-                document.getElementById("nombre").value = "";
-                document.getElementById("nombre").focus();
             });
-            $(document).on('click', '.btn_remove', function() {
-                var button_id = $(this).attr("id");
-                //cuando da click obtenemos el id del boton
-                $('#row' + button_id + '').remove(); //borra la fila
-                //limpia el para que vuelva a contar las filas de la tabla
-                $("#adicionados").text("");
-                var nFilas = $("#mytable tr").length;
-                $("#adicionados").append(nFilas - 1);
+
+            // Evita un doble envío y valida lo mínimo antes de ir al servidor
+            $form.addEventListener('submit', function (e) {
+                if (lineas.size === 0) {
+                    e.preventDefault();
+                    return alerta('Agregue al menos un producto.');
+                }
+                if (!document.getElementById('Fecha').value) {
+                    e.preventDefault();
+                    return alerta('Indique la fecha tentativa de entrega.');
+                }
+                $btnEnviar.disabled = true;
+                $btnEnviar.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span> Enviando…';
             });
-        });
+
+            previos.forEach(function (p) {
+                lineas.set(p.id, { nombre: p.nombre, cantidad: p.cantidad });
+            });
+            render();
+        })();
     </script>
-
+@endpush
 @endsection
-
-
-<style>
-    .select2-search__field {
-        user-select: text;
-    }
-
-
-    .select2-container--material {
-        width: 100% !important;
-        font-size: 80%
-    }
-
-    .select2-container--material .select2-selection--single {
-        background-color: transparent;
-        border: none;
-        border-bottom: 0.5px solid #ced4da;
-        border-radius: 0;
-        box-shadow: none;
-        box-sizing: content-box;
-        height: auto;
-        margin: 0;
-        outline: none;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    }
-
-    .select2-container--material .select2-selection--single .select2-selection__placeholder {
-        color: #999;
-    }
-
-    .select2-container--material .select2-search--dropdown .select2-search__field {
-        border: none;
-        border-bottom: 0.5px solid #ced4da;
-        border-radius: 0;
-        outline: none;
-    }
-
-    .select2-container--material .select2-results__option--highlighted[aria-selected] {
-        background-color: #3498DB;
-        color: rgb(0, 0, 0);
-    }
-</style>

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "puente": {
+      "command": "node",
+      "args": ["c:/xampp/htdocs/Inventario/.puente/server.cjs"]
+    }
+  }
+}
+

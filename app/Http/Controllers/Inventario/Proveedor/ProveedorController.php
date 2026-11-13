@@ -10,14 +10,26 @@ use App\Http\Controllers\Controller;
 class ProveedorController extends Controller
 {
     public function consultar(Request $request)
-    {              
-        $buscar=strtoupper(trim($request->get('texto')));  
+    {
+        $buscar = strtoupper(trim((string) $request->get('texto', '')));
 
-        $Proveedor = DB::table('Proveedor')->where("Nombre",'like',$buscar."%")
-        ->orwhere("Nit",'like',"%".$buscar."%")->paginate(20); 
-      
-        return view('Inventario.Proveedor.ConsultarProveedor',compact('Proveedor','buscar'));
-    }   
+        $query = DB::table('Proveedor');
+        if ($buscar !== '') {
+            $query->where(function ($w) use ($buscar) {
+                $w->where('Nombre', 'like', '%' . $buscar . '%')->orWhere('Nit', 'like', '%' . $buscar . '%') ->orWhere('Correo', 'like', '%' . $buscar . '%') ->orWhere('Telefono', 'like', '%' . $buscar . '%');
+            });
+        }
+
+        match ((string) $request->get('orden', 'nombre')) {
+            'nombre_desc' => $query->orderByDesc('Nombre'),
+            'recientes' => $query->orderByDesc('created_at')->orderByDesc('Id'),
+            default => $query->orderBy('Nombre'),
+        };
+
+        $Proveedor = $query->paginate(20)->withQueryString();
+
+        return view('Inventario.Proveedor.ConsultarProveedor', compact('Proveedor', 'buscar'));
+    }
 
     public function editar($id)
     { 
@@ -40,9 +52,7 @@ class ProveedorController extends Controller
                 'Nit'=> strtoupper(trim( $request['Nit'])), 'Telefono'=>$request['Telefono'],'Correo'=>strtoupper(trim( $request['Correo']))
                 ]);
 
-        $Proveedor = DB::table('Proveedor')->paginate(20); 
-      
-        return view('Inventario.Proveedor.ConsultarProveedor',compact('Proveedor')); 
+        return redirect()->route('Proveedor')->with('success', 'Proveedor actualizado correctamente.');
          
     }
 
@@ -52,8 +62,10 @@ class ProveedorController extends Controller
     }
 
     public function Guardar(Request $request)
-    {        
-       
+    {
+        // Se normaliza antes de validar para que la comprobación de duplicados compare igual que se guarda (mayúsculas).
+        $request->merge(['Nombre' => strtoupper(trim((string) $request->input('Nombre')))]);
+
         $validated = $request->validate([
             'Nombre' => 'required|unique:Proveedor|min:2|max:255',
             'Nit' => 'required|numeric|min:2',
@@ -67,8 +79,6 @@ class ProveedorController extends Controller
         $save->IdEmpleado=auth()->user()->id;
         $save->save();
 
-       $Proveedor = DB::table('Proveedor')->paginate(20); 
-      
-        return view('Inventario.Proveedor.ConsultarProveedor',compact('Proveedor'));   
+        return redirect()->route('Proveedor')->with('success', 'Proveedor registrado correctamente.');
     }
 }

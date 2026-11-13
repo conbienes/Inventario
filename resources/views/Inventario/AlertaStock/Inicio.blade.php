@@ -1,43 +1,30 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
 
 @section('content')
-    <div class="container">
-        <div class="card card-primary">
-            <div class="card-header">
-                <h3 class="card-title mb-0">{{ __('ALERTASTOCK') }}</h3>
-            </div>
-
-            <div class="card-body">
-                @forelse ($Division as $item)
-                    <div class="row justify-content-center mb-3">
-                        <div class="col-12 col-md-8 col-lg-6">
-                            <div class="info-box shadow-sm" style="border-radius: 0.5rem;">
-                                <span class="info-box-icon d-flex align-items-center justify-content-center"
-                                    style="border-top-left-radius: .5rem; border-bottom-left-radius: .5rem;">
-                                    <img src="{{ asset("assets/$theme/dist/img/9.png") }}" alt="Alerta stock"
-                                        style="max-height: 48px; width:auto;" />
-                                </span>
-                                <a href="{{ route('AlertaStock', ['id' => Crypt::encrypt($item->id)]) }}"
-                                    class="text-dark text-decoration-none flex-grow-1">
-                                    <div class="info-box-content">
-                                        <span class="info-box-text fw-semibold">{{ $item->nombre }}</span>
-                                    </div>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                @empty
-                    <div class="text-center text-muted py-4">
-                        {{ __('No hay divisiones para mostrar.') }}
-                    </div>
-                @endforelse
-
-                <div class="text-center mt-3">
-                    <a class="btn btn-primary" href="{{ route('InicioInventario') }}">
-                        {{ __('Cancelar') }}
-                    </a>
-                </div>
-            </div>
-        </div>
+<div class="inv-cabecera">
+    <div>
+        <h1 class="inv-titulo">{{ __('Alertas de stock') }}</h1>
+        <p class="inv-subtitulo">Seleccione una división para revisar sus productos bajo el mínimo.</p>
     </div>
+    <div class="inv-acciones">
+        <a class="btn btn-outline-secondary" href="{{ route('InicioInventario') }}">{{ __('Volver') }}</a>
+    </div>
+</div>
+
+<div class="row">
+    @forelse ($Division as $item)
+        <div class="col-12 col-sm-6 col-lg-4 mb-3">
+            <a class="inv-tarjeta-enlace d-flex align-items-center p-3 h-100" href="{{ route('AlertaStock', ['id' => Crypt::encrypt($item->id)]) }}">
+                <img src="{{ asset("assets/$theme/dist/img/9.png") }}" alt="" width="48" height="48" class="mr-3">
+                <span class="font-weight-bold">{{ $item->nombre }}</span>
+            </a>
+        </div>
+    @empty
+        <div class="col-12">
+            <div class="inv-vacio"><i class="fas fa-folder-open"></i><p>No hay divisiones para mostrar.</p></div>
+        </div>
+    @endforelse
+</div>
 @endsection

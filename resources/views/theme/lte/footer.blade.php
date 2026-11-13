@@ -1,6 +1,3 @@
-<footer class="main-footer">
-    <div class="float-right d-none d-sm-block">
-    </div>
-    <strong> <a href="https://www.mayorcainversiones.com/">CONBIENES</a></strong> All rights
-    reserved.
-  </footer>
+<footer class="main-footer cb-footer">
+    <span>&copy; {{ date('Y') }} <strong>CONBIENES</strong> · Todos los derechos reservados</span>
+</footer>

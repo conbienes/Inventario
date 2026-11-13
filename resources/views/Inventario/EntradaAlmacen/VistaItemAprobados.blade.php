@@ -1,62 +1,51 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
 
 @section('content')
-
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>    
-  <!-- Modal -->
-  <div class="modal fade" id="myModal"  >
-    <div class="modal-dialog modal-lg" >
-      <div class="modal-content"  >
-        <div class="modal-header"  >
-         <h5 > <strong>Productos Aprobados</strong></h5>      
-        </div>
-        <div class="card-body">
-            <table class="table-striped table-bordered" >                       
-                <thead>
-                  <tr ALIGN="center">
-                    <th width="200"scope="col">Producto</th>
-                    <th width="200"scope="col">Fecha Solicitud</th>
-                    <th width="200"scope="col">Cantidad Aprobadas</th>
-                    <th width="200"scope="col">Cantidad Solicitadas</th>
-                  </tr>
-                </thead>            
-                @foreach ($itemfactura as $item)
-                    <tr ALIGN="center">
-                        <td width="80"> <font size=2>{{$item->Producto}}</font></td> 
-                        <td width="80"> <font size=2>{{$item->Comentario}}</font></td>                          
-                        <td width="80"> <font size=2>{{$item->CantidadA}}</font></td>  
-                        <td width="80"> <font size=2>{{$item->CantidadS}}</font></td>                      
-                    </tr>                   
-                   @endforeach                                                                                                      
-            </table> 
-
-            <table class="table" style="width : 50px; heigth : 10px" ALIGN="center" >                                     
-                    <td>
-                      <div class="form-group">
-					  
-                        <a class="btn btn-danger" href="javascript: history.go(-1)">{{ __('Cancelar') }} </a> 
-						
-                      </div> 
-                    </td>              
-             </table> 
-			
-        </div>  
-      </div>
+<div class="inv-cabecera">
+    <div>
+        <h1 class="inv-titulo">{{ __('Productos aprobados del pedido') }}</h1>
+        <p class="inv-subtitulo">Cantidades aprobadas y solicitadas de cada producto.</p>
     </div>
-  </div>
+    <div class="inv-acciones">
+        <a class="btn btn-outline-secondary" href="javascript:history.back()"><i class="fas fa-arrow-left"></i> {{ __('Volver') }}</a>
+    </div>
+</div>
 
-    <script>
-      $( document ).ready(function() {
-          $('#myModal').modal({  backdrop: 'static',
-          keyboard: false}).modal('show')            
-      });
-  </script>
+<div class="inv-tabla-wrap">
+    <div class="table-responsive">
+        <table class="table inv-tabla" data-filtro-rapido>
+            <thead>
+                <tr>
+                    <th scope="col">Producto</th>
+                    <th scope="col">Comentario</th>
+                    <th scope="col" style="min-width:170px">Recibido</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($itemfactura as $item)
+                    <tr>
+                        @php $pct = $item->CantidadS > 0 ? min(100, round($item->CantidadA / $item->CantidadS * 100)) : 0; @endphp
+                        <td class="font-weight-bold">{{ $item->Producto }}</td>
+                        <td class="inv-texto-2">{{ $item->Comentario ?: '—' }}</td>
+                        <td>
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span><strong>{{ $item->CantidadA + 0 }}</strong> de {{ $item->CantidadS + 0 }}</span>
+                                <span class="text-muted">{{ $pct }}%</span>
+                            </div>
+                            <div class="inv-avance"><span style="width: {{ $pct }}%"></span></div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="3">
+                            <div class="inv-vacio"><i class="fas fa-inbox"></i><p>Este pedido no tiene productos registrados.</p></div>
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
 @endsection
-
-
-
-
-
-
-
-

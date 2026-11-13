@@ -1,5 +1,9 @@
 @extends("theme.$theme.layout")
 
+@push('css')
+    @include('BonoRegalo.partials._estilos')
+@endpush
+
 @section('content')
     <div class="container-fluid py-4">
         <div class="row justify-content-center">
@@ -59,38 +63,38 @@
                 @endif
 
                 {{-- Tarjeta Principal --}}
-                <div class="card border-0 shadow rounded-4 overflow-hidden">
+                <div class="card border-0 shadow rounded-lg overflow-hidden">
 
                     {{-- Cabecera --}}
-                    <div class="card-header bg-primary bg-gradient text-white p-4 d-flex flex-column flex-md-row justify-content-between align-items-center border-0">
+                    <div class="card-header bg-primary text-white p-4 d-flex flex-column flex-md-row justify-content-between align-items-center border-0">
                         <div class="d-flex align-items-center mb-3 mb-md-0">
-                            <div class="bg-white bg-opacity-25 rounded-circle p-3 me-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                                <i class="fas fa-gift fa-xl"></i>
+                            <div class="bg-white rounded-circle p-3 mr-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                <i class="fas fa-gift fa-lg text-primary"></i>
                             </div>
                             <div>
-                                <h4 class="mb-0 fw-bold">Tarjetas Bono Regalo</h4>
+                                <h4 class="mb-0 font-weight-bold">Tarjetas Bono Regalo</h4>
                                 <small class="text-white-50">Gestión e importación de bonos</small>
                             </div>
                         </div>
                         <div class="d-flex gap-2">
                             <a href="{{ route('BonoRegalo.IndexTarjeta') }}" class="btn btn-light rounded-pill px-3 shadow-sm hover-elevate">
-                                <i class="fas fa-plus-circle me-1 text-primary"></i> Nueva Tarjeta
+                                <i class="fas fa-plus-circle mr-1 text-primary"></i> Nueva Tarjeta
                             </a>
                         </div>
                     </div>
 
                     <div class="card-body p-4 p-md-5 bg-light">
                         {{-- SECCIÓN DE IMPORTACIÓN --}}
-                        <div class="card border border-2 border-primary border-opacity-25 rounded-3 mb-4 border-dashed" style="border-style: dashed !important;">
+                        <div class="card border border-2 border-primary rounded mb-4 border-dashed" style="border-style: dashed !important;">
                             <div class="card-body p-4">
                                 <div class="d-flex align-items-center mb-3">
-                                    <i class="fas fa-cloud-upload-alt fa-2x text-primary me-3"></i>
+                                    <i class="fas fa-cloud-upload-alt fa-2x text-primary mr-3"></i>
                                     <div>
-                                        <h5 class="mb-0 fw-bold">Importar Tarjetas Masivas</h5>
+                                        <h5 class="mb-0 font-weight-bold">Importar Tarjetas Masivas</h5>
                                         <p class="text-muted small mb-0">Sube tu archivo .xlsx o .csv con los datos actualizados.</p>
                                     </div>
                                 </div>
-                                <form action="{{ route('BonoRegalo.ImportarTarjeta') }}" method="POST" enctype="multipart/form-data" class="row g-3 align-items-center" id="importForm">
+                                <form action="{{ route('BonoRegalo.ImportarTarjeta') }}" method="POST" enctype="multipart/form-data" class="row align-items-center" id="importForm">
                                     @csrf
                                     <div class="col-md-7">
                                         <input type="file" name="archivo" id="archivo"
@@ -102,7 +106,7 @@
                                     </div>
                                     <div class="col-md-5 d-flex gap-2">
                                         <button type="submit" class="btn btn-primary btn-lg w-100 shadow-sm" id="importBtn">
-                                            <i class="fas fa-upload me-2"></i> Subir
+                                            <i class="fas fa-upload mr-2"></i> Subir
                                         </button>                                      
                                     </div>
                                 </form>
@@ -110,7 +114,7 @@
                                 <div id="progress-container" class="d-none mt-3">
                                     <div class="d-flex justify-content-between small mb-1">
                                         <span class="text-muted">Procesando archivo...</span>
-                                        <span class="fw-bold text-primary" id="progress-text">0%</span>
+                                        <span class="font-weight-bold text-primary" id="progress-text">0%</span>
                                     </div>
                                     <div class="progress" style="height: 6px;">
                                         <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" id="progress-bar" style="width: 0%;"></div>
@@ -120,27 +124,27 @@
                         </div>
 
                         {{-- SECCIÓN DE FILTROS --}}
-                        <div class="bg-white p-4 rounded-3 shadow-sm mb-4">
-                            <form method="GET" action="{{ route('BonoRegalo.BuscarTarjeta') }}" class="row g-3 align-items-end">
+                        <div class="bg-white p-4 rounded shadow-sm mb-4">
+                            <form method="GET" action="{{ route('BonoRegalo.BuscarTarjeta') }}" class="row align-items-end">
                                 <div class="col-md-2">
-                                    <label class="form-label text-muted small fw-bold text-uppercase">N° de Tarjeta</label>
+                                    <label class="form-label text-muted small font-weight-bold text-uppercase">N° de Tarjeta</label>
                                     <input type="text" name="numero" value="{{ request('numero') }}" class="form-control" placeholder="Ej: 4198...">
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label text-muted small fw-bold text-uppercase">NIT Comprador</label>
+                                    <label class="form-label text-muted small font-weight-bold text-uppercase">NIT Comprador</label>
                                     <input type="text" name="cedula" value="{{ request('cedula') }}" class="form-control" placeholder="Ej: 9013...">
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label text-muted small fw-bold text-uppercase">Desde</label>
+                                    <label class="form-label text-muted small font-weight-bold text-uppercase">Desde</label>
                                     <input type="date" name="fecha_inicio" value="{{ request('fecha_inicio') }}" class="form-control">
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label text-muted small fw-bold text-uppercase">Hasta</label>
+                                    <label class="form-label text-muted small font-weight-bold text-uppercase">Hasta</label>
                                     <input type="date" name="fecha_fin" value="{{ request('fecha_fin') }}" class="form-control">
                                 </div>
                                 <div class="col-md-4 d-flex gap-2">
                                     <button type="submit" class="btn btn-dark flex-fill shadow-sm">
-                                        <i class="fas fa-search me-2"></i> Buscar
+                                        <i class="fas fa-search mr-2"></i> Buscar
                                     </button>
                                     <a href="{{ route('BonoRegalo.BuscarTarjeta') }}" class="btn btn-light border text-muted flex-fill shadow-sm" title="Limpiar filtros">
                                         <i class="fas fa-eraser"></i>
@@ -153,31 +157,31 @@
                         </div>
 
                         {{-- TABLA DE RESULTADOS --}}
-                        <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+                        <div class="card border-0 shadow-sm rounded overflow-hidden">
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="table-light text-muted small">
                                         <tr>
-                                            <th class="text-center text-uppercase fw-bold py-3" width="80">ID</th>
-                                            <th class="text-uppercase fw-bold py-3">NIT</th>
-                                            <th class="text-uppercase fw-bold py-3">Número</th>
-                                            <th class="text-end text-uppercase fw-bold py-3" width="150">Valor</th>
-                                            <th class="text-center text-uppercase fw-bold py-3" width="150">Creación</th>
-                                            <th class="text-center text-uppercase fw-bold py-3" width="120">Estado</th>
-                                            <th class="text-center text-uppercase fw-bold py-3" width="100">Acción</th>
+                                            <th class="text-center text-uppercase font-weight-bold py-3" width="80">ID</th>
+                                            <th class="text-uppercase font-weight-bold py-3">NIT</th>
+                                            <th class="text-uppercase font-weight-bold py-3">Número</th>
+                                            <th class="text-right text-uppercase font-weight-bold py-3" width="150">Valor</th>
+                                            <th class="text-center text-uppercase font-weight-bold py-3" width="150">Creación</th>
+                                            <th class="text-center text-uppercase font-weight-bold py-3" width="120">Estado</th>
+                                            <th class="text-center text-uppercase font-weight-bold py-3" width="100">Acción</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="border-top-0">
+                                    <tbody>
                                         @forelse ($Tarjetas as $Item)
                                             <tr>
                                                 <td class="text-center text-muted">#{{ $Item->id }}</td>
-                                                <td class="fw-medium">{{ $Item->nit }}</td>
+                                                <td class="font-weight-bold">{{ $Item->nit }}</td>
                                                 <td>
-                                                    <span class="badge bg-light text-secondary border font-monospace px-2 py-1 fs-6">
-                                                        <i class="far fa-credit-card me-1"></i> {{ $Item->numero }}
+                                                    <span class="badge bg-light text-secondary border br-mono px-2 py-1">
+                                                        <i class="far fa-credit-card mr-1"></i> {{ $Item->numero }}
                                                     </span>
                                                 </td>
-                                                <td class="text-end text-success fw-bold">
+                                                <td class="text-right text-success font-weight-bold">
                                                     ${{ number_format($Item->valor, 0, ',', '.') }}
                                                 </td>
                                                 <td class="text-center text-muted small">
@@ -185,9 +189,9 @@
                                                 </td>
                                                 <td class="text-center">
                                                     @if($Item->estado == 'activa')
-                                                        <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success px-3 py-1">Activa</span>
+                                                        <span class="badge rounded-pill br-tint-success text-success border border-success px-3 py-1">Activa</span>
                                                     @else
-                                                        <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary border border-secondary px-3 py-1">{{ ucfirst($Item->estado) }}</span>
+                                                        <span class="badge rounded-pill br-tint-secondary text-secondary border border-secondary px-3 py-1">{{ ucfirst($Item->estado) }}</span>
                                                     @endif
                                                 </td>
                                                 <td class="text-center">
@@ -205,9 +209,9 @@
                                                 <td colspan="7" class="text-center py-5 bg-white">
                                                     <div class="py-4">
                                                         <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
-                                                            <i class="fas fa-inbox fa-2x text-muted opacity-50"></i>
+                                                            <i class="fas fa-inbox fa-2x text-muted"></i>
                                                         </div>
-                                                        <h5 class="fw-bold text-dark">No hay tarjetas registradas</h5>
+                                                        <h5 class="font-weight-bold text-dark">No hay tarjetas registradas</h5>
                                                         <p class="text-muted">Ajusta los filtros de búsqueda o importa nuevas tarjetas para comenzar.</p>
                                                     </div>
                                                 </td>
@@ -224,9 +228,9 @@
                         <div class="card-footer bg-white p-4 border-top">
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
                                 <div class="text-muted small mb-3 mb-md-0">
-                                    Mostrando resultados <span class="fw-bold text-dark">{{ $Tarjetas->firstItem() }}</span> al
-                                    <span class="fw-bold text-dark">{{ $Tarjetas->lastItem() }}</span> de un total de
-                                    <span class="fw-bold text-dark">{{ $Tarjetas->total() }}</span>
+                                    Mostrando resultados <span class="font-weight-bold text-dark">{{ $Tarjetas->firstItem() }}</span> al
+                                    <span class="font-weight-bold text-dark">{{ $Tarjetas->lastItem() }}</span> de un total de
+                                    <span class="font-weight-bold text-dark">{{ $Tarjetas->total() }}</span>
                                 </div>
                                 <div class="m-0">
                                     {{ $Tarjetas->appends(request()->query())->links('pagination::bootstrap-4') }}
@@ -240,8 +244,9 @@
     </div>
 @endsection
 
-@push('scripts')
+@push('css')
 <style>
+    .br-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 1rem; }
     .hover-elevate {
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
@@ -257,16 +262,17 @@
         border-style: dashed !important;
     }
 </style>
+@endpush
 
+@push('js')
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     // Auto-cierre de alertas
     const alerts = document.querySelectorAll('.alert');
     alerts.forEach(alert => {
         setTimeout(() => {
-            const bsAlert = bootstrap.Alert.getInstance(alert);
-            if (bsAlert) {
-                bsAlert.close();
+            if (window.$ && $.fn.alert) {
+                $(alert).alert('close');
             }
         }, 8000); // 8 segundos para que alcances a leer mensajes largos
     });
@@ -287,14 +293,14 @@ document.addEventListener("DOMContentLoaded", function() {
                         const alertDiv = document.createElement('div');
                         alertDiv.className = 'alert alert-success py-2 px-3 mt-2 mb-0 border-0 d-inline-block w-100 shadow-sm file-info-alert';
                         alertDiv.innerHTML = `
-                            <i class="fas fa-check-circle me-2"></i>
-                            <strong>¡Archivo listo!</strong> ${fileName} <span class="badge bg-white text-success ms-2">${fileSize} KB</span>
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <strong>¡Archivo listo!</strong> ${fileName} <span class="badge bg-white text-success ml-2">${fileSize} KB</span>
                         `;
                         this.parentNode.appendChild(alertDiv);
                     } else {
                         existingAlert.innerHTML = `
-                            <i class="fas fa-check-circle me-2"></i>
-                            <strong>¡Archivo listo!</strong> ${fileName} <span class="badge bg-white text-success ms-2">${fileSize} KB</span>
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <strong>¡Archivo listo!</strong> ${fileName} <span class="badge bg-white text-success ml-2">${fileSize} KB</span>
                         `;
                     }
                 }
@@ -323,7 +329,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 }, 200);
 
                 importBtn.disabled = true;
-                importBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Procesando...';
+                importBtn.innerHTML = '<span class="spinner-border spinner-border-sm mr-2"></span> Procesando...';
 
                 setTimeout(() => {
                     clearInterval(interval);

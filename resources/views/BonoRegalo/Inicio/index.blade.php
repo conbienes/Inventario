@@ -1,149 +1,156 @@
 @extends("theme.$theme.layout")
 
+@push('css')
+    @include('BonoRegalo.partials._estilos')
+@endpush
+
 @section('content')
+    @php
+        $uid = auth()->id();
+        $puedeVender = tienePermisoModulo($uid, 3, [1, 2, 3]);
+        $puedeTarjetas = tienePermisoModulo($uid, 3, [1, 2, 5]);
+        $nombre = trim(explode(' ', (string) optional(auth()->user())->nombre)[0] ?? '');
+        $hora = (int) now()->format('G');
+        $saludo = $hora < 12 ? 'Buenos días' : ($hora < 19 ? 'Buenas tardes' : 'Buenas noches');
+    @endphp
+
     <div class="container-fluid py-4">
 
-        {{-- Mensajes mejorados con animaciones --}}
         @foreach (['success' => 'success', 'success1' => 'warning'] as $key => $alertType)
             @if (session($key))
-                <div class="alert alert-{{ $alertType }} alert-dismissible fade show shadow-sm animate__animated animate__fadeInDown"
-                    role="alert">
+                <div class="alert alert-{{ $alertType }} alert-dismissible fade show shadow-sm" role="alert">
                     <div class="d-flex align-items-center">
-                        <i class="fas fa-check-circle me-2 fs-5"></i>
+                        <i class="fas fa-check-circle mr-2 fs-5"></i>
                         <span class="flex-grow-1">{{ session($key) }}</span>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
                     </div>
                 </div>
             @endif
         @endforeach
 
-
-        {{-- Bono Regalo --}}
-        <section class="mb-5">
-            <h2 class="mb-4 fw-bold text-primary d-flex align-items-center">
-                <span
-                    class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center me-3"
-                    style="width: 40px; height: 40px;">
-                    <i class="fas fa-gift fs-6"></i>
-                </span>
-                Bono Regalo
-            </h2>
-            <div class="row g-4">
-                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                    <a href="{{ route('BonoRegalo.BuscarCliente') }}"
-                        class="card card-module shadow-sm text-decoration-none h-100">
-                        <div class="card-body text-center p-4">
-                            <div class="module-icon bg-primary bg-opacity-10 text-primary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
-                                style="width: 80px; height: 80px;">
-                                <img src="{{ asset('assets/lte/dist/img/8.png') }}" class="img-fluid"
-                                    style="max-width: 50px;" alt="Clientes">
-                            </div>
-                            <h5 class="text-dark fw-semibold mb-2">Clientes</h5>
-                            <p class="text-muted small mb-0">Gestionar y buscar clientes</p>
-                        </div>
-                    </a>
+        {{-- Bienvenida --}}
+        <section class="br-hero mb-4">
+            <div class="br-hero__texto">
+                <span class="br-hero__etiqueta"><i class="fas fa-gift mr-1"></i> Bono Regalo</span>
+                <h1>{{ $saludo }}{{ $nombre ? ', ' . $nombre : '' }}</h1>
+                <p>Vende tarjetas de regalo, consulta clientes y revisa tus ventas desde aquí.</p>
+                <div class="br-hero__acciones">
+                    @if ($puedeVender)
+                        <a href="{{ route('BonoRegalo.IndexFacturas') }}" class="btn btn-light btn-lg">
+                            <i class="fas fa-cash-register mr-2"></i>Nueva venta
+                        </a>
+                        <a href="{{ route('BonoRegalo.BuscarCliente') }}" class="btn btn-outline-light btn-lg">
+                            <i class="fas fa-search mr-2"></i>Buscar cliente
+                        </a>
+                    @else
+                        <a href="{{ route('BonoRegalo.ReporteVentas') }}" class="btn btn-light btn-lg">
+                            <i class="fas fa-chart-line mr-2"></i>Ver reporte de ventas
+                        </a>
+                    @endif
                 </div>
+            </div>
+            <div class="br-hero__figura" aria-hidden="true">
+                <img src="{{ asset('assets/conbienes/img/login-bono.svg') }}" alt="">
+            </div>
+        </section>
 
-                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                    <a href="{{ route('BonoRegalo.IndexFacturas') }}"
-                        class="card card-module shadow-sm text-decoration-none h-100">
-                        <div class="card-body text-center p-4">
-                            <div class="module-icon bg-success bg-opacity-10 text-success rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
-                                style="width: 80px; height: 80px;">
-                                <img src="{{ asset("assets/$theme/dist/img/2.png") }}" class="img-fluid"
-                                    style="max-width: 50px;" alt="Ventas Bono">
-                            </div>
-                            <h5 class="text-dark fw-semibold mb-2">Ventas Bono</h5>
-                            <p class="text-muted small mb-0">Ver y gestionar ventas</p>
-                        </div>
-                    </a>
-                </div>
-
-                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                    <a href="{{ route('BonoRegalo.informesTarjetas') }}"
-                        class="card card-module shadow-sm text-decoration-none h-100">
-                        <div class="card-body text-center p-4">
-                            <div class="module-icon bg-info bg-opacity-10 text-info rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
-                                style="width: 80px; height: 80px;">
-                                <img src="{{ asset("assets/$theme/dist/img/3.png") }}" class="img-fluid"
-                                    style="max-width: 50px;" alt="Recibos de Caja">
-                            </div>
-                            <h5 class="text-dark fw-semibold mb-2">Recibos de Caja</h5>
-                            <p class="text-muted small mb-0">Informes y recibos</p>
-                        </div>
-                    </a>
-                </div>
-
-                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                    <a href="#" class="card card-module shadow-sm text-decoration-none h-100" id="btnResumenRapido">
-                        <div class="card-body text-center p-4">
-                            <div class="module-icon bg-info bg-opacity-10 text-info rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
-                                style="width: 80px; height: 80px;">
-                                <i class="fas fa-chart-bar fs-4"></i>
-                            </div>
-                            <h5 class="text-dark fw-semibold mb-2">Resumen Rápido</h5>
-                            <p class="text-muted small mb-0">Ver estadísticas</p>
-                        </div>
+        {{-- Ventas y clientes --}}
+        <section class="mb-4">
+            <h2 class="br-seccion">Ventas y clientes</h2>
+            <div class="row">
+                @if ($puedeVender)
+                    <div class="col-12 col-sm-6 col-xl-3 mb-3">
+                        <a href="{{ route('BonoRegalo.IndexFacturas') }}" class="br-modulo">
+                            <span class="br-modulo__ico br-ico-azul"><i class="fas fa-cash-register"></i></span>
+                            <span class="br-modulo__txt">
+                                <strong>Nueva venta</strong>
+                                <small>Vender bonos y generar recibo</small>
+                            </span>
+                            <i class="fas fa-chevron-right br-modulo__flecha"></i>
+                        </a>
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3 mb-3">
+                        <a href="{{ route('BonoRegalo.BuscarCliente') }}" class="br-modulo">
+                            <span class="br-modulo__ico br-ico-verde"><i class="fas fa-users"></i></span>
+                            <span class="br-modulo__txt">
+                                <strong>Clientes</strong>
+                                <small>Buscar, crear y editar</small>
+                            </span>
+                            <i class="fas fa-chevron-right br-modulo__flecha"></i>
+                        </a>
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3 mb-3">
+                        <a href="{{ route('BonoRegalo.informesTarjetas') }}" class="br-modulo">
+                            <span class="br-modulo__ico br-ico-ambar"><i class="fas fa-receipt"></i></span>
+                            <span class="br-modulo__txt">
+                                <strong>Recibos de caja</strong>
+                                <small>Consultar y reimprimir ventas</small>
+                            </span>
+                            <i class="fas fa-chevron-right br-modulo__flecha"></i>
+                        </a>
+                    </div>
+                @endif
+                <div class="col-12 col-sm-6 col-xl-3 mb-3">
+                    <a href="#" class="br-modulo" id="btnResumenRapido">
+                        <span class="br-modulo__ico br-ico-cian"><i class="fas fa-chart-pie"></i></span>
+                        <span class="br-modulo__txt">
+                            <strong>Resumen rápido</strong>
+                            <small>Total vendido por rango de fechas</small>
+                        </span>
+                        <i class="fas fa-chevron-right br-modulo__flecha"></i>
                     </a>
                 </div>
             </div>
         </section>
 
-        {{-- Tarjetas Bono Regalo --}}
-        <section class="mb-5">
-            <h2 class="mb-4 fw-bold text-success d-flex align-items-center">
-                <span
-                    class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center me-3"
-                    style="width: 40px; height: 40px;">
-                    <i class="fas fa-credit-card fs-6"></i>
-                </span>
-                Tarjetas Bono Regalo
-            </h2>
-            <div class="row g-4">
-                <div class="col-12 col-sm-6 col-md-3">
-                    <a href="{{ route('BonoRegalo.BuscarTarjeta') }}"
-                        class="card card-module shadow-sm text-decoration-none h-100">
-                        <div class="card-body text-center p-4">
-                            <div class="module-icon bg-primary bg-opacity-10 text-primary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
-                                style="width: 80px; height: 80px;">
-                                <img src="{{ asset("assets/$theme/dist/img/4.png") }}" class="img-fluid"
-                                    style="max-width: 50px;" alt="Crear">
-                            </div>
-                            <h5 class="text-dark fw-semibold mb-2">Crear</h5>
-                            <p class="text-muted small mb-0">Generar nueva tarjeta</p>
-                        </div>
+        {{-- Tarjetas y reportes --}}
+        <section class="mb-4">
+            <h2 class="br-seccion">Tarjetas y reportes</h2>
+            <div class="row">
+                @if ($puedeTarjetas)
+                    <div class="col-12 col-sm-6 col-xl-3 mb-3">
+                        <a href="{{ route('BonoRegalo.BuscarTarjeta') }}" class="br-modulo">
+                            <span class="br-modulo__ico br-ico-azul"><i class="fas fa-credit-card"></i></span>
+                            <span class="br-modulo__txt">
+                                <strong>Inventario de tarjetas</strong>
+                                <small>Existencias, estados e importación</small>
+                            </span>
+                            <i class="fas fa-chevron-right br-modulo__flecha"></i>
+                        </a>
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3 mb-3">
+                        <a href="{{ route('BonoRegalo.IndexTarjeta') }}" class="br-modulo">
+                            <span class="br-modulo__ico br-ico-verde"><i class="fas fa-plus"></i></span>
+                            <span class="br-modulo__txt">
+                                <strong>Registrar tarjeta</strong>
+                                <small>Agregar tarjetas nuevas</small>
+                            </span>
+                            <i class="fas fa-chevron-right br-modulo__flecha"></i>
+                        </a>
+                    </div>
+                @endif
+                <div class="col-12 col-sm-6 col-xl-3 mb-3">
+                    <a href="{{ route('BonoRegalo.ReporteVentas') }}" class="br-modulo">
+                        <span class="br-modulo__ico br-ico-violeta"><i class="fas fa-chart-line"></i></span>
+                        <span class="br-modulo__txt">
+                            <strong>Reporte de ventas</strong>
+                            <small>Gráficas y métricas</small>
+                        </span>
+                        <i class="fas fa-chevron-right br-modulo__flecha"></i>
                     </a>
                 </div>
-
-                <div class="col-12 col-sm-6 col-md-3">
-                    <a href="{{ route('BonoRegalo.ReporteVentas') }}"
-                        class="card card-module shadow-sm text-decoration-none h-100">
-                        <div class="card-body text-center p-4">
-                            <div class="module-icon bg-success bg-opacity-10 text-success rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
-                                style="width: 80px; height: 80px;">
-                                <img src="{{ asset("assets/$theme/dist/img/9.png") }}" class="img-fluid"
-                                    style="max-width: 50px;" alt="Reporte de Ventas">
-                            </div>
-                            <h5 class="text-dark fw-semibold mb-2">Reporte de Ventas</h5>
-                            <p class="text-muted small mb-0">Análisis y estadísticas</p>
-                        </div>
-                    </a>
-                </div>
-
-                <div class="col-12 col-sm-6 col-md-3">
-                    <a href="{{ route('BonoRegalo.Contabilidad') }}"
-                        class="card card-module shadow-sm text-decoration-none h-100">
-                        <div class="card-body text-center p-4">
-                            <div class="module-icon bg-blue bg-opacity-10 text-success rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
-                                style="width: 80px; height: 80px;">
-                                <img src="{{ asset("assets/$theme/dist/img/8.png") }}" class="img-fluid"
-                                    style="max-width: 50px;" alt="Reporte de Ventas">
-                            </div>
-                            <h5 class="text-dark fw-semibold mb-2">Contabilidad </h5>
-                            <p class="text-muted small mb-0">Cargar Información a BC</p>
-                        </div>
-                    </a>
-                </div>
+                @if ($puedeTarjetas)
+                    <div class="col-12 col-sm-6 col-xl-3 mb-3">
+                        <a href="{{ route('BonoRegalo.Contabilidad') }}" class="br-modulo">
+                            <span class="br-modulo__ico br-ico-ambar"><i class="fas fa-file-invoice-dollar"></i></span>
+                            <span class="br-modulo__txt">
+                                <strong>Contabilidad</strong>
+                                <small>Enviar información a BC</small>
+                            </span>
+                            <i class="fas fa-chevron-right br-modulo__flecha"></i>
+                        </a>
+                    </div>
+                @endif
             </div>
         </section>
 
@@ -153,13 +160,13 @@
                 data-monthstart="{{ now()->startOfMonth()->toDateString() }}">
 
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0 text-white">Resumen de Ventas</h5>
-                    <button type="button" class="btn-close btn-close-white" id="btnCerrarPanel"></button>
+                    <h5 class="font-weight-bold mb-0 text-white">Resumen de Ventas</h5>
+                    <button type="button" class="close text-white" id="btnCerrarPanel" aria-label="Cerrar panel"><span aria-hidden="true">&times;</span></button>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label text-white-50">Rango de fechas</label>
-                    <div class="row g-2">
+                    <div class="row">
                         <div class="col-6">
                             <input type="date" id="res_from" class="form-control form-control-dark"
                                 max="{{ now()->toDateString() }}">
@@ -179,20 +186,20 @@
 
                 <div class="d-flex gap-2 mb-3">
                     <button id="res_aplicar" class="btn btn-primary flex-fill">
-                        <i class="fas fa-sync-alt me-1"></i> Actualizar
+                        <i class="fas fa-sync-alt mr-1"></i> Actualizar
                     </button>
 
                     @if (Route::has('BonoRegalo.exportarFacturas'))
                         <a id="res_export" href="#" class="btn btn-success flex-fill" target="_blank"
                             rel="noopener">
-                            <i class="fas fa-file-excel me-1"></i> Exportar
+                            <i class="fas fa-file-excel mr-1"></i> Exportar
                         </a>
                     @endif
 
                     {{-- NUEVO: Imprimir térmico --}}
                     <button type="button" id="res_print" class="btn btn-danger flex-fill"
                         data-url-base="{{ route('BonoRegalo.printResumen') }}" {{-- <-- tu ruta GET que imprime por rango --}}>
-                        <i class="fas fa-print me-1"></i> Imprimir
+                        <i class="fas fa-print mr-1"></i> Imprimir
                     </button>
 
                 </div>
@@ -201,11 +208,11 @@
                 <div id="resumenCard" class="card bg-dark border-secondary shadow-sm mb-3">
                     <div class="card-body">
                         <div class="small text-white-50">Total vendido</div>
-                        <div id="res_total" class="display-6 fw-bold mb-1 text-white">$0</div>
+                        <div id="res_total" class="display-6 font-weight-bold mb-1 text-white">$0</div>
                         <div class="text-white-50" id="res_rango">—</div>
                         <div class="mt-2">
                             <span class="badge bg-secondary">
-                                <i class="fas fa-receipt me-1"></i>
+                                <i class="fas fa-receipt mr-1"></i>
                                 <span id="res_tx">0</span> transacciones
                             </span>
                         </div>
@@ -214,7 +221,7 @@
 
                 {{-- Métodos de pago --}}
                 <div id="res_methods_wrap" class="mb-3" style="display:none;">
-                    <h6 class="fw-semibold mb-2 text-white">Por método de pago</h6>
+                    <h6 class="font-weight-bold mb-2 text-white">Por método de pago</h6>
                     <div id="res_methods"></div>
                 </div>
             </div>
@@ -230,14 +237,15 @@
 
     </div>
 
+    @push('css')
     {{-- Estilos mejorados --}}
     <style>
         :root {
-            --primary-color: #0d6efd;
-            --success-color: #198754;
-            --info-color: #0dcaf0;
-            --warning-color: #ffc107;
-            --danger-color: #dc3545;
+            --primary-color: #005484;
+            --success-color: #15803D;
+            --info-color: #0E7490;
+            --warning-color: #FFC107;
+            --danger-color: #B91C1C;
             --transition: all 0.3s ease;
         }
 
@@ -301,6 +309,7 @@
             top: 0;
             right: 0;
             width: 400px;
+            max-width: 100%;
             height: 100vh;
             z-index: 1060;
             transform: translateX(100%);
@@ -328,7 +337,7 @@
             background-color: #2d3047;
             border-color: var(--primary-color);
             color: #fff;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+            box-shadow: 0 0 0 0.25rem rgba(0, 84, 132, 0.25);
         }
 
         @media (max-width: 576px) {
@@ -426,7 +435,7 @@
         }
 
         .control-sidebar-content::-webkit-scrollbar-thumb:hover {
-            background: #0b5ed7;
+            background: var(--br-primary-dark);
         }
 
         /* Overlay para cerrar panel en móviles */
@@ -447,6 +456,8 @@
             }
         }
     </style>
+    @endpush
+    @push('js')
     <script>
         (function() {
             const $ = (s, c = document) => c.querySelector(s);
@@ -587,10 +598,10 @@
                 if (btnAplicar) {
                     if (mostrar) {
                         btnAplicar.disabled = true;
-                        btnAplicar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Cargando...';
+                        btnAplicar.innerHTML = '<span class="spinner-border spinner-border-sm mr-2"></span>Cargando...';
                     } else {
                         btnAplicar.disabled = false;
-                        btnAplicar.innerHTML = '<i class="fas fa-sync-alt me-1"></i> Actualizar';
+                        btnAplicar.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Actualizar';
                     }
                 }
             }
@@ -632,7 +643,7 @@
                                 <span class="text-white-50">${m.name}</span>
                                 <small class="d-block text-white-25">${m.n} transacciones</small>
                             </div>
-                            <span class="fw-semibold text-white">${fmtMoney(m.total || 0)}</span>
+                            <span class="font-weight-bold text-white">${fmtMoney(m.total || 0)}</span>
                         </div>`).join('');
                         } else {
                             wrap.style.display = 'none';
@@ -656,44 +667,6 @@
                     }, 3000);
                 } finally {
                     mostrarCargando(false);
-                }
-            }
-
-            // Función para cargar estadísticas rápidas (simuladas por ahora)
-            async function cargarEstadisticasRapidas() {
-                try {
-                    // Por ahora simulamos datos, puedes conectar esto a tu backend después
-                    const stats = {
-                        hoy: {
-                            total: 1250000,
-                            transacciones: 8
-                        },
-                        tarjetas: {
-                            activas: 45
-                        },
-                        clientes: {
-                            total: 128
-                        },
-                        pendientes: 3,
-                        notificaciones: 2
-                    };
-
-                    // Actualizar tarjetas de estadísticas
-                    $('#statHoy').text(fmtMoney(stats.hoy.total || 0));
-                    $('#statHoyTransacciones').text(`${stats.hoy.transacciones || 0} transacciones`);
-                    $('#statTarjetas').text(stats.tarjetas.activas || 0);
-                    $('#statClientes').text(stats.clientes.total || 0);
-                    $('#statPendientes').text(stats.pendientes || 0);
-
-                    // Actualizar badge de notificaciones
-                    const badge = $('#badgeNotificaciones');
-                    if (badge && stats.notificaciones) {
-                        badge.textContent = stats.notificaciones;
-                        badge.style.display = stats.notificaciones > 0 ? 'block' : 'none';
-                    }
-
-                } catch (e) {
-                    console.error('Error cargando estadísticas rápidas:', e);
                 }
             }
 
@@ -776,7 +749,9 @@
                 // Botón de ayuda
                 if (btnAyuda) {
                     btnAyuda.addEventListener('click', () => {
-                        new bootstrap.Modal($('#modalAyuda')).show();
+                        if (window.jQuery && jQuery('#modalAyuda').length) {
+                            jQuery('#modalAyuda').modal('show');
+                        }
                     });
                 }
 
@@ -811,18 +786,9 @@
                     }
                 });
 
-                // Cargar estadísticas al iniciar
-                cargarEstadisticasRapidas();
-
-                // Cargar estadísticas cada 5 minutos
-                setInterval(cargarEstadisticasRapidas, 300000);
-
-                // Inicializar tooltips de Bootstrap si están disponibles
-                if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-                    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
-                    tooltipTriggerList.map(function(tooltipTriggerEl) {
-                        return new bootstrap.Tooltip(tooltipTriggerEl);
-                    });
+                // Tooltips de Bootstrap. Dentro de este script "$" es querySelector, por eso se usa jQuery explícito.
+                if (window.jQuery && jQuery.fn.tooltip) {
+                    jQuery('[title]').tooltip();
                 }
             }
 
@@ -835,4 +801,5 @@
 
         })();
     </script>
+    @endpush
 @endsection

@@ -1,5 +1,9 @@
 @extends("theme.$theme.layout")
 
+@push('css')
+    @include('BonoRegalo.partials._estilos')
+@endpush
+
 @section('content')
     <div class="container-fluid px-2 py-3 contabilidad-compact">
         {{-- Header Compacto --}}
@@ -7,8 +11,8 @@
             <div class="col-12">
                 <div class="dashboard-header-compact">
                     <div class="header-content-compact">
-                        <h1 class="h3 fw-bold text-white mb-1">
-                            <i class="fas fa-file-invoice-dollar me-2"></i>Módulo Contabilidad
+                        <h1 class="h3 font-weight-bold text-white mb-1">
+                            <i class="fas fa-file-invoice-dollar mr-2"></i>Módulo Contabilidad
                         </h1>
                     </div>
                 </div>
@@ -25,25 +29,25 @@
 
             <div class="filter-header-compact">
                 <div class="filter-title-compact">
-                    <i class="fas fa-sliders-h me-2"></i>
-                    <span class="fw-semibold">Filtros</span>
+                    <i class="fas fa-sliders-h mr-2"></i>
+                    <span class="font-weight-bold">Filtros</span>
                 </div>
                 <div class="filter-actions-compact">
                     <button type="submit" class="btn-compact primary">
-                        <i class="fas fa-filter me-1"></i>Aplicar
+                        <i class="fas fa-filter mr-1"></i>Aplicar
                     </button>
                     <a href="{{ route('BonoRegalo.Contabilidad') }}" class="btn-compact primary">
-                        <i class="fas fa-eraser me-1"></i>Limpiar
+                        <i class="fas fa-eraser mr-1"></i>Limpiar
                     </a>
                 </div>
             </div>
 
             <div class="filter-body-compact">
-                <div class="row g-2 align-items-end">
+                <div class="row align-items-end">
                     {{-- Buscar --}}
                     <div class="col-12 col-md-3">
                         <label class="form-label-compact">
-                            <i class="fas fa-search me-1"></i>Buscar
+                            <i class="fas fa-search mr-1"></i>Buscar
                         </label>
                         <div class="input-group-compact">
                             <input type="text" name="q" value="{{ $q ?? '' }}" class="form-control-compact"
@@ -55,14 +59,14 @@
                     {{-- Fechas --}}
                     <div class="col-6 col-md-2">
                         <label class="form-label-compact">
-                            <i class="fas fa-calendar-alt me-1"></i>Desde
+                            <i class="fas fa-calendar-alt mr-1"></i>Desde
                         </label>
                         <input type="date" name="desde" value="{{ $desde ?? '' }}" class="form-control-compact"
                             max="{{ now()->toDateString() }}" id="flt_from">
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label-compact">
-                            <i class="fas fa-calendar-alt me-1"></i>Hasta
+                            <i class="fas fa-calendar-alt mr-1"></i>Hasta
                         </label>
                         <input type="date" name="hasta" value="{{ $hasta ?? '' }}" class="form-control-compact"
                             max="{{ now()->toDateString() }}" id="flt_to">
@@ -71,7 +75,7 @@
                     {{-- Rangos rápidos --}}
                     <div class="col-12 col-md-5">
                         <label class="form-label-compact">
-                            <i class="fas fa-bolt me-1"></i>Rango Rápido
+                            <i class="fas fa-bolt mr-1"></i>Rango Rápido
                         </label>
                         <div class="quick-range-compact">
                             <button class="btn-compact quick-range-btn" type="button" data-range="hoy">
@@ -92,7 +96,7 @@
                     {{-- Estado BC --}}
                     <div class="col-12">
                         <label class="form-label-compact">
-                            <i class="fas fa-tags me-1"></i>Estado BC
+                            <i class="fas fa-tags mr-1"></i>Estado BC
                         </label>
 
                         @php
@@ -105,7 +109,7 @@
                             <label class="chip-compact chip-all">
                                 <input type="checkbox" id="chk_all" {{ $todosMarcados ? 'checked' : '' }}>
                                 <span class="chip-pill-compact">
-                                    <i class="fas fa-layer-group me-1"></i>Todos
+                                    <i class="fas fa-layer-group mr-1"></i>Todos
                                 </span>
                             </label>
 
@@ -115,11 +119,11 @@
                                         {{ in_array($e, $estadosSel) ? 'checked' : '' }}>
                                     <span class="chip-pill-compact estado-{{ strtolower($e) }}">
                                         @if ($e === 'ENVIADO')
-                                            <i class="fas fa-paper-plane me-1"></i>
+                                            <i class="fas fa-paper-plane mr-1"></i>
                                         @elseif($e === 'ERROR')
-                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            <i class="fas fa-exclamation-triangle mr-1"></i>
                                         @elseif($e === 'PENDIENTE')
-                                            <i class="fas fa-hourglass-half me-1"></i>
+                                            <i class="fas fa-hourglass-half mr-1"></i>
                                         @endif
                                         {{ $e }}
                                     </span>
@@ -139,11 +143,11 @@
 
             <div class="results-header-compact">
                 <div class="results-title-compact">
-                    <i class="fas fa-cloud-upload-alt me-2"></i>
-                    <span class="fw-semibold">Resultado Carga BC</span>
+                    <i class="fas fa-cloud-upload-alt mr-2"></i>
+                    <span class="font-weight-bold">Resultado Carga BC</span>
                 </div>
                 <button id="bcHide" type="button" class="btn-compact outline btn-xs">
-                    <i class="fas fa-times me-1"></i>Ocultar
+                    <i class="fas fa-times mr-1"></i>Ocultar
                 </button>
             </div>
 
@@ -198,12 +202,12 @@
             @csrf
             <div class="actions-header-compact">
                 <div class="actions-title-compact">
-                    <i class="fas fa-cogs me-2"></i>
-                    <span class="fw-semibold">Acciones Masivas</span>
+                    <i class="fas fa-cogs mr-2"></i>
+                    <span class="font-weight-bold">Acciones Masivas</span>
                 </div>
                 <div class="actions-info-compact">
                     <div class="table-title-compact">
-                        <i class="fas fa-check-square me-1"></i>
+                        <i class="fas fa-check-square mr-1"></i>
                         <span id="selCount">0 </span> seleccionadas
                     </div>
                 </div>
@@ -212,13 +216,13 @@
             <div class="actions-body-compact">
                 <div class="actions-buttons-compact">
                     <button type="submit" id="bulkApply" class="btn-compact primary" disabled>
-                        <i class="fas fa-play me-1"></i>Aplicar
+                        <i class="fas fa-play mr-1"></i>Aplicar
                     </button>
                     <button type="button" id="bulkClear" class="btn-compact outline" disabled>
-                        <i class="fas fa-times me-1"></i>Limpiar
+                        <i class="fas fa-times mr-1"></i>Limpiar
                     </button>
                     <button type="button" id="btnLoadClients" class="btn-compact success">
-                        <i class="fas fa-user-plus me-1"></i>Clientes
+                        <i class="fas fa-user-plus mr-1"></i>Clientes
                     </button>
                 </div>
             </div>
@@ -228,15 +232,15 @@
         <div class="modern-table-compact">
             <div class="table-header-compact">
                 <div class="table-title-compact">
-                    <i class="fas fa-table me-2"></i>
-                    <span class="fw-semibold">Lista de Facturas</span>
+                    <i class="fas fa-table mr-2"></i>
+                    <span class="font-weight-bold">Lista de Facturas</span>
                 </div>
                 <div class="table-info-compact">
                     <span class="table-count-compact">{{ $facturas->total() }} registros</span>
                 </div>
             </div>
 
-            <div class="table-container-compact" id="tablaWrap">
+            <div class="table-container-compact table-responsive" id="tablaWrap">
                 <table class="modern-table-compact">
                     <thead class="table-head-compact">
                         <tr>
@@ -291,11 +295,11 @@
                                 <td class="table-status-compact">
                                     <span class="status-badge-compact status-{{ strtolower($f->estado_bc) }}">
                                         @if ($f->estado_bc === 'PENDIENTE')
-                                            <i class="fas fa-hourglass-half me-1"></i>
+                                            <i class="fas fa-hourglass-half mr-1"></i>
                                         @elseif($f->estado_bc === 'ENVIADO')
-                                            <i class="fas fa-paper-plane me-1"></i>
+                                            <i class="fas fa-paper-plane mr-1"></i>
                                         @elseif($f->estado_bc === 'ERROR')
-                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            <i class="fas fa-exclamation-triangle mr-1"></i>
                                         @endif
                                         {{ $f->estado_bc }}
                                     </span>
@@ -330,21 +334,22 @@
         </div>
     </div>
 
+@push('css')
     {{-- Estilos Compactos --}}
     <style>
         :root {
             --primary-color: #005484;
-            --primary-light: #0066a6;
+            --primary-light: #005484;
             --primary-dark: #003d63;
-            --success-color: #10b981;
-            --warning-color: #f59e0b;
-            --danger-color: #ef4444;
-            --info-color: #06b6d4;
-            --secondary-color: #6b7280;
+            --success-color: #15803D;
+            --warning-color: #FFC107;
+            --danger-color: #B91C1C;
+            --info-color: #0E7490;
+            --secondary-color: #4B5563;
             --background-light: #f8fafc;
             --border-light: #e2e8f0;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
+            --text-primary: #1F2937;
+            --text-secondary: #4B5563;
             --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
             --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
             --border-radius: 8px;
@@ -359,7 +364,7 @@
 
         /* Header Compacto */
         .dashboard-header-compact {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+            background: linear-gradient(135deg, #003F63 0%, #005484 55%, #0A6AA0 100%);
             padding: 1.25rem 1.5rem;
             border-radius: var(--border-radius);
             box-shadow: var(--shadow-md);
@@ -394,7 +399,7 @@
         .results-header-compact,
         .actions-header-compact,
         .table-header-compact {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+            background: var(--primary-color);
             color: white;
             padding: 0.75rem 1rem;
             display: flex;
@@ -565,13 +570,13 @@
         .estado-error {
             border-color: rgba(239, 68, 68, 0.3);
             background: rgba(239, 68, 68, 0.05);
-            color: #dc2626;
+            color: #B91C1C;
         }
 
         .estado-pendiente {
             border-color: rgba(245, 158, 11, 0.3);
             background: rgba(245, 158, 11, 0.05);
-            color: #d97706;
+            color: #B45309;
         }
 
         .chip-compact[data-e="ENVIADO"] input:checked+.chip-pill-compact {
@@ -742,28 +747,28 @@
         }
 
         .table-number-compact {
-            width: 100px;
+            min-width: 100px;
         }
 
         .table-date-compact {
-            width: 90px;
+            min-width: 90px;
         }
 
         .table-amount-compact {
-            width: 100px;
+            min-width: 100px;
             text-align: right;
         }
 
         .table-payment-compact {
-            width: 120px;
+            min-width: 120px;
         }
 
         .table-status-compact {
-            width: 110px;
+            min-width: 110px;
         }
 
         .table-progress-compact {
-            width: 60px;
+            min-width: 60px;
             text-align: center;
         }
 
@@ -978,7 +983,9 @@
             }
         }
     </style>
+@endpush
 
+@push('js')
     {{-- Mantenemos todos tus scripts existentes --}}
     <script>
         (function() {
@@ -1352,4 +1359,5 @@
             updateUI();
         })();
     </script>
+@endpush
 @endsection

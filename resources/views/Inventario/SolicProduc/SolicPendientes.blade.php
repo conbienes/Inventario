@@ -1,82 +1,68 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
+
 @section('content')
+<div class="inv-cabecera">
+    <div>
+        <h1 class="inv-titulo">Mis solicitudes pendientes</h1>
+        <p class="inv-subtitulo">Solicitudes de productos enviadas que aún no han sido aprobadas.</p>
+    </div>
+    <div class="inv-acciones">
+        <a class="btn btn-outline-secondary" href="{{ route('InicioInventario') }}"><i class="fas fa-home"></i> Inicio</a>
+        <a class="btn btn-success" href="{{ route('Crear_SolicProduc') }}"><i class="fas fa-plus"></i> Nueva solicitud</a>
+    </div>
+</div>
 
+@include('Inventario.partials.filtros', [
+    'accion' => route('Pendientes'),
+    'total'  => $pedidoinventario->total(),
+    'campos' => [
+        ['tipo' => 'fecha',  'nombre' => 'desde', 'etiqueta' => 'Desde'],
+        ['tipo' => 'fecha',  'nombre' => 'hasta', 'etiqueta' => 'Hasta'],
+        ['tipo' => 'orden',  'nombre' => 'orden', 'defecto' => 'recientes', 'opciones' => ['recientes' => 'Más recientes', 'antiguas' => 'Más antiguas']],
+    ],
+])
 
-<div class="card card-primary"  >
-    <div class="card-header " >                                        
-        <label size >{{ __('SOLICITUDES') }}</label>                                                                                                                  
-    </div>          
-    <form action="{{route('Pendientes')}}" method="GET">
-      <table class="form-group col-lg-5 "   cellpadding="4" >          
-        <div class="form-group" > 
-          <tr>
-            <td>                  
-            </td>
-            <td>
-              <div class="form-group ">          
-                <input type="date"  class="form-control" name="date" id="date"  autocomplete="off" >
-              </div> 
-            </td>
-            <td>
-              <div class="form-group ">
-                <button type="submit" name="Buscar" id="Buscar"  class="btn btn-primary">{{ __('Buscar') }}</button>
-              </div> 
-            </td>
-          </div> 
-          </form>
-</table>                
-    <div  class="card-header " >
-        <div class="row justify-content-center">
-
-               <table class="table table-striped table-bordered" > 
-                  <thead>
-                    <tr ALIGN="center">
-                                               
-                      <th scope="col">Código</th>
-                      <th width="200"scope="col">Fecha solicitada</th>
-                      <th width="200"scope="col">Productos Solicitados</th>
-                      <th width="200"scope="col">Estado</th>
-                      <th width="200"scope="col">Ver</th>
+<div class="inv-tabla-wrap">
+    <div class="table-responsive">
+        <table class="table inv-tabla">
+            <thead>
+                <tr>
+                    <th scope="col">Código</th>
+                    <th scope="col">Fecha solicitada</th>
+                    <th scope="col" class="num"># Productos</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col" class="text-center">Ver</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($pedidoinventario as $item)
+                    @if ((int) $item->Estado === 1)
+                        <tr>
+                            <td>{{ $item->Id }}</td>
+                            <td>{{ $item->Dia }}</td>
+                            <td class="num">{{ $item->Cantidad }}</td>
+                            <td>@include('Inventario.SolicProduc._estado', ['estado' => $item->Estado])</td>
+                            <td class="text-center">
+                                <a class="btn btn-sm btn-outline-primary" href="{{ route('VistaPendientes', ['id' => Crypt::encrypt($item->Id)]) }}"><i class="far fa-eye"></i> Ver detalle</a>
+                            </td>
+                        </tr>
+                    @endif
+                @empty
+                    <tr>
+                        <td colspan="5">
+                            <div class="inv-vacio"><i class="fas fa-inbox"></i><p>No tiene solicitudes pendientes.</p></div>
+                        </td>
                     </tr>
-                  </thead>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
 
-                  @foreach ($pedidoinventario as $item)
-                  @if ($item->Estado==1)
-                    <tr ALIGN="center"> 
-                      <td width="80"> <font size=2>{{$item->Id}}</font></td> 
-                        <td width="80"> <font size=2>{{$item->Dia}}</font></td>                                                                                                  
-                        <td width="80"> <font size=2>{{$item->Cantidad}}</font></td>  
-                        <td width="80"> 
-                            <font style="color: rgb(255, 0, 0)" size=2>PENDIENTE POR APROBAR</font></td>                        
-                        <td><font size=4> <a data-placement="left" data-toggle="tooltip" title="ver" href="{{route('VistaPendientes',['id'=>Crypt::encrypt($item->Id)])}}"> <i class="far fa-eye"></i></a> </font> </td>
-                       </tr> 
-                       @else 
-
-                       @endif     
-                     @endforeach                                                                                 
-              </table>  
-            </div>
-              <div style="text-align:center;">
-                <table ALIGN="center">
-                  <tr >
-                    <td >
-                      <p> {{$pedidoinventario->total()}} Registros | Página {{$pedidoinventario->currentPage()}} de {{$pedidoinventario->lastPage()}}</p> 
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      {{$pedidoinventario->links()}}
-                     </td>                                       
-                  </tr> 
-                  <tr>
-                    <td>
-                      <div class="row justify-content-center">
-                        <a class="btn btn-danger" href="{{route('InicioInventario')}}">{{ __('Inicio') }} </a> 
-                        </div>
-                    </td>
-                  </tr>                                                          
-                </table>
-              </div>                                                  
-          </div> 
-           
+<div class="inv-pie mt-3">
+    <span class="inv-texto-2">{{ $pedidoinventario->total() }} registros | Página {{ $pedidoinventario->currentPage() }} de {{ $pedidoinventario->lastPage() }}</span>
+    <div class="inv-paginacion">{{ $pedidoinventario->links('pagination::bootstrap-4') }}</div>
+</div>
 @endsection

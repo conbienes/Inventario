@@ -1,119 +1,74 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
+
+@push('js')
+<script>
+    $(function () {
+        var $grupo = $('#calificacion');
+        var seleccion = parseInt($grupo.find('input:checked').val(), 10) || 0;
+
+        function pintar(valor) {
+            $grupo.find('label').each(function () {
+                $(this).toggleClass('inv-estrella-activa', parseInt($(this).data('valor'), 10) <= valor);
+            });
+        }
+
+        pintar(seleccion);
+
+        $grupo.find('input').on('change', function () {
+            seleccion = parseInt($(this).val(), 10);
+            pintar(seleccion);
+        });
+        $grupo.find('label').on('mouseenter', function () {
+            pintar(parseInt($(this).data('valor'), 10));
+        }).on('mouseleave', function () {
+            pintar(seleccion);
+        });
+    });
+</script>
+@endpush
 
 @section('content')
-
-<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-
-
-  <!-- Modal -->
-  <div class="modal fade" id="myModal"  >
-    <div class="modal-dialog ">
-      <div class="modal-content" >
-        <div class="modal-header" style="background-color:#5bc0de" >
-          <h5 >Calificar Entrega de los productos</h5>
-        </div>
-
-        <form method="POST" action="{{ route('CalificarPost') }}">
-          @csrf
-            <table ALIGN="center">
-              <tr >
-                <td>
-                    <p class="clasificacion">
-                      <input id="radio1" type="radio" name="estrellas" id="estrellas" value="1" required>
-                      <label for="radio1">★</label>
-                      <input id="radio2" type="radio" name="estrellas" id="estrellas" value="2">
-                      <label for="radio2">★</label>
-                      <input id="radio3" type="radio" name="estrellas" id="estrellas" value="3">
-                      <label for="radio3">★</label>
-                      <input id="radio4" type="radio" name="estrellas" id="estrellas"  value="4">
-                      <label for="radio4">★</label>
-                      <input id="radio5" type="radio" name="estrellas" id="estrellas" value="5">
-                      <label for="radio5">★</label>
-                    </p>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                    <textarea name="CCalificacion" id="CCalificacion" maxlength="200"  class="form-control" rows="3" autocomplete="off" required></textarea>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <input name="registroF" type="hidden" id="registroF" value="{{$registroF}}"></textarea>
-                  </td>
-                </tr>
-            </table>
-                    <br>
-          <table class="table" >
-            <tr ALIGN="center">
-            <td >
-              <div class="form-group" >
-              <button type="submit" class="btn btn-success">{{ __('Calificar') }}</button>
-              </div>
-            </td>
-          </tr>
-        </table>
-
-      </form>
-
-
+<div class="inv-cabecera">
+    <div>
+        <h1 class="inv-titulo">{{ __('Calificar la entrega de productos') }}</h1>
+        <p class="inv-subtitulo">Evalúe la entrega del proveedor para esta remisión.</p>
     </div>
-  </div>
 </div>
 
-  <script>
-    $( document ).ready(function() {
-        $('#myModal').modal({  backdrop: 'static',
-        keyboard: false}).modal('show')
-    });
-    </script>
+@include('Inventario.partials.pasos', ['pasos' => ['Revisar lo recibido', 'Calificar proveedor', 'Notificar al personal'], 'actual' => 2])
 
-    <script>
-        $(".clasificacion").find("input").change(function(){
-        var valor = $(this).val()
-        $(".clasificacion").find("input").removeClass("activo")
-        $(".clasificacion").find("input").each(function(index){
-          if(index+1<=valor){
-            $(this).addClass("activo")
-          }
+<div class="row justify-content-center"><div class="col-lg-8">
+<div class="inv-tarjeta-wrap">
+    <form method="POST" action="{{ route('CalificarPost') }}" class="inv-tarjeta p-3 p-md-4">
+        @csrf
+        <input type="hidden" name="registroF" value="{{ $registroF }}">
 
-        })
-      })
+        <div class="form-group">
+            <span id="etiqueta-calificacion" class="font-weight-bold d-block mb-1">¿Cómo fue la entrega del proveedor? <span class="inv-campo-obligatorio">*</span></span>
+            <div id="calificacion" class="inv-estrellas" role="radiogroup" aria-labelledby="etiqueta-calificacion">
+                @for ($i = 1; $i <= 5; $i++)
+                    <input type="radio" id="estrella{{ $i }}" name="estrellas" value="{{ $i }}" required
+                           aria-label="{{ $i }} de 5 estrellas">
+                    <label for="estrella{{ $i }}" data-valor="{{ $i }}" title="{{ $i }} de 5">&#9733;</label>
+                @endfor
+            </div>
+            <small class="inv-ayuda d-block mt-1">1 = muy mala, 5 = excelente.</small>
+        </div>
 
-      $(".clasificacion").find("label").mouseover(function(){
-        var valor = $(this).prev("input").val()
-        $(".clasificacion").find("input").removeClass("activo")
-        $(".clasificacion").find("input").each(function(index){
-          if(index+1<=valor){
-            $(this).addClass("activo")
-          }
+        <div class="form-group mb-0">
+            <label for="CCalificacion">{{ __('Comentario') }} <span class="inv-campo-obligatorio">*</span></label>
+            <textarea id="CCalificacion" name="CCalificacion" class="form-control" rows="3" maxlength="200"
+                      autocomplete="off" required></textarea>
+            <small class="inv-ayuda">Máximo 200 caracteres.</small>
+        </div>
 
-        })
-      })
-    </script>
-
-    <style>
-      .clasificacion input[type='radio'] {
-    opacity: 0;
-      }
-      .clasificacion label {
-        font-size: 30px;
-        color:rgb(150, 150, 150);
-        cursor: pointer;
-      }
-      .clasificacion label:hover {
-        color: rgb(217, 215, 11);
-      }
-      .activo + label{
-      color: rgb(255, 230, 0) !important;
-      }
-    </style>
+        <div class="inv-acciones inv-acciones--fin mt-4">
+            <a class="btn btn-outline-secondary" href="{{ route('EntAlmacen') }}">{{ __('Volver al inicio') }}</a>
+            <button type="submit" class="btn btn-success btn-lg">{{ __('Guardar y continuar') }} <i class="fas fa-arrow-right ml-1"></i></button>
+        </div>
+    </form>
+</div>
+</div></div>
 @endsection
-
-
-
-
-
-
-
-

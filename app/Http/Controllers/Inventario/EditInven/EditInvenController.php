@@ -19,6 +19,47 @@ use Illuminate\Support\Facades\Redirect;
 
 class EditInvenController extends Controller
 {
+    /**
+     * Vuelve a la pantalla desde donde se hizo el cambio (Inventario o Alertas de stock) si llegó
+     * en el campo "volver" y es una dirección de esta misma aplicación; si no, al inventario.
+     */
+    private function volver(Request $request)
+    {
+        $volver = (string) $request->input('volver', '');
+        if ($volver !== '' && str_starts_with($volver, url('/') . '/')) {
+            return redirect()->to($volver);
+        }
+
+        return redirect()->route('Inventario');
+    }
+
+    /** Cambia la cantidad mínima y máxima de un producto en el inventario (desde la ventana de la tabla). */
+    public function ActualizarLimites(Request $request)
+    {
+        if (! (Auth::check() && auth()->user()->id_tipoempleado == 1)) {
+            return redirect('/');
+        }
+
+        $datos = $request->validate([
+            'Id' => ['required', 'integer', 'exists:Inventario,Id'],
+            'CantidadMin' => ['required', 'numeric', 'min:0'],
+            'CantidadMax' => ['required', 'numeric', 'min:0', 'gte:CantidadMin'],
+        ], [
+            'CantidadMax.gte' => 'La cantidad máxima no puede ser menor que la mínima.',
+        ]);
+
+        DB::table('Inventario')->where('Id', $datos['Id'])->update([
+            'CantidadMin' => $datos['CantidadMin'],
+            'CantidadMax' => $datos['CantidadMax'],
+        ]);
+
+        $producto = DB::table('Inventario')->join('Producto as p', 'p.Id', '=', 'Inventario.IdProducto')
+            ->where('Inventario.Id', $datos['Id'])->value('p.Nombre');
+
+        Session::flash('succes', 'Se actualizaron el mínimo y el máximo de ' . $producto . '.');
+
+        return $this->volver($request);
+    }
 
     public function editar($id)
     {
@@ -56,7 +97,7 @@ class EditInvenController extends Controller
                 ->join('Almacen as a','a.Id','=','Inventario.IdAlmacen')
                 ->join('categoria_inventario as c','c.Id','=','Inventario.IdCategoria')
                 ->select('Inventario.Id','Inventario.Cantidades','p.Nombre as Producto','d.Nombre as Division',
-                'a.Nombre as Almacen','c.Nombre as Categoria')
+                'a.Nombre as Almacen','c.Nombre as Categoria','Inventario.Estanteria','Inventario.Entrepano','Inventario.Gaveta')
                 ->where("Inventario.Id",'=',$id)->get();
 
             return view('Inventario.EditInven.EditarInventario',compact('EditInven'));
@@ -100,7 +141,7 @@ class EditInvenController extends Controller
 
                 Session::flash('succes','El producto con el código '.$request['Id'].' se actualizó correctamente ');
 
-                return Redirect::to('/Inventario');
+                return $this->volver($request);
             }
             else
             {
@@ -126,7 +167,7 @@ class EditInvenController extends Controller
 
                 Session::flash('succes','Se actualizo correctamente');
 
-                return Redirect::to('/Inventario');
+                return redirect()->route('Inventario');
             }
             else
             {

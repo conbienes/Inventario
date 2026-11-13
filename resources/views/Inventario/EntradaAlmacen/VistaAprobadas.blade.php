@@ -1,97 +1,88 @@
-
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
+
 @section('content')
+<div class="inv-cabecera">
+    <div>
+        <h1 class="inv-titulo">{{ __('Pedidos aprobados') }}</h1>
+        <p class="inv-subtitulo">Entregas ya aprobadas por el almacén para esta división.</p>
+    </div>
+    <div class="inv-acciones">
+        <a class="btn btn-outline-secondary" href="{{ route('Vista_EntAlmacen', ['id' => Crypt::encrypt($div)]) }}"><i class="fas fa-arrow-left"></i> {{ __('Volver') }}</a>
+    </div>
+</div>
 
-<div class="card card-primary"  >
-    <div class="card-header " >                                        
-        <label size >{{ __('SOLICITUDES') }}</label>                                                                                                                  
-    </div>  
-    <form action="{{route('SolicAprobadasFacturas',['id'=>Crypt::encrypt($div)])}}" method="GET">
-        <table CELLPADDING=5 >          
-          <div class="form-group" > 
-            <tr> 
-              <td>
-              </td>              
-              <td>
-                <div class="form-group ">          
-                  <input type="text"  class="form-control" name="texto" id="texto" autocomplete="off" >
-                </div> 
-              </td>
-              <td>
-                <div class="form-group ">
-                  <button type="submit" name="Buscar" id="Buscar"  class="btn btn-primary">{{ __('Buscar') }}</button>
-                </div> 
-              </td>
-            </div> 
-            </form>
-              <td>                                   
-                  <div class="form-group ">                                          
-                    <a class="btn btn-danger" href="{{route('Vista_EntAlmacen',['id'=>Crypt::encrypt($div)])}}" >{{ __('Cancelar') }} </a>      
-                  </div>                   
-              </td>
-            </tr>  
-        </table>
-               
-    <div  class="card-header " >
-        <div class="row justify-content-center">
+@php($urlLista = route('SolicAprobadasFacturas', ['id' => Crypt::encrypt($div)]))
+@include('Inventario.partials.filtros', [
+    'accion' => $urlLista,
+    'total' => $SoliPendi->total(),
+    'campos' => [
+        ['tipo' => 'texto', 'nombre' => 'texto', 'placeholder' => 'Proveedor, NIT, orden de pedido o remisión'],
+        ['tipo' => 'fecha', 'nombre' => 'desde', 'etiqueta' => 'Ingreso desde'],
+        ['tipo' => 'fecha', 'nombre' => 'hasta', 'etiqueta' => 'Ingreso hasta'],
+        ['tipo' => 'numero', 'nombre' => 'valor_min', 'etiqueta' => 'Valor mínimo', 'prefijo' => '$', 'placeholder' => '$'],
+        ['tipo' => 'numero', 'nombre' => 'valor_max', 'etiqueta' => 'Valor máximo', 'prefijo' => '$', 'placeholder' => '$'],
+        ['tipo' => 'orden', 'nombre' => 'orden', 'defecto' => 'recientes', 'opciones' => ['recientes' => 'Más recientes', 'antiguas' => 'Más antiguas', 'valor_desc' => 'Mayor valor', 'valor_asc' => 'Menor valor', 'proveedor' => 'Proveedor (A-Z)']],
+    ],
+])
 
-               <table class="table table-striped table-bordered" > 
-                  <thead>
-                    <tr ALIGN="center">     
-                        <th width="50"scope="col">ID</th>                                          
-                        <th width="300"scope="col">Proveedor</th>
-                        <th width="100"scope="col">Nit</th>
-                        <th width="200"scope="col">Precio Total</th>
-                        <th width="150"scope="col">Orden de Pedido</th>
-                        <th width="100"scope="col">Fecha Ingreso</th>
-                        <th width="100"scope="col"># Remision</th>
-                        <th width="100"scope="col">Estado</th>
-                        <th width="100" scope="col"></th>
+<div class="inv-tabla-wrap">
+    <div class="table-responsive">
+        <table class="table inv-tabla">
+            <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Proveedor</th>
+                    <th scope="col">Remisión / Orden</th>
+                    <th scope="col">Ingreso</th>
+                    <th scope="col" class="text-right">Valor</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col"><span class="sr-only">Acciones</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($SoliPendi as $item)
+                    <tr>
+                        <td class="text-muted">{{ $item->Id }}</td>
+                        <td>
+                            <div class="font-weight-bold">{{ $item->Proveedor }}</div>
+                            <div class="small text-muted">NIT {{ $item->Nit }}</div>
+                        </td>
+                        <td>
+                            <div>{{ $item->Nfactura }}</div>
+                            <div class="small text-muted">OP {{ $item->OrdenPedido }}</div>
+                        </td>
+                        <td class="text-nowrap">{{ $item->FechaIngreso ? \Carbon\Carbon::parse($item->FechaIngreso)->locale('es')->isoFormat('D MMM YYYY') : '—' }}</td>
+                        <td class="text-right text-nowrap">${{ number_format((float) $item->PrecioTotal, 0, ',', '.') }}</td>
+                        <td><span class="inv-estado inv-estado--ok">{{ $item->Estado }}</span></td>
+                        <td class="text-nowrap text-right">
+                            <a class="btn btn-sm btn-outline-primary" title="Ver productos aprobados"
+                               href="{{ route('FVistaAprobadas', ['id' => Crypt::encrypt($item->Id)]) }}">
+                                <i class="far fa-eye" aria-hidden="true"></i> Ver
+                            </a>
+                            <a class="btn btn-sm btn-outline-secondary" title="Editar pedido"
+                               href="{{ route('EditarSolicitud', ['id' => Crypt::encrypt($item->Id)]) }}">
+                                <i class="fas fa-edit" aria-hidden="true"></i> Editar
+                            </a>
+                        </td>
                     </tr>
-                  </thead>
+                @empty
+                    <tr>
+                        <td colspan="7">
+                            <div class="inv-vacio"><i class="fas fa-inbox"></i><p>No hay pedidos aprobados que coincidan con los filtros.</p></div>
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
 
-                  @foreach ($SoliPendi as $item)
-                    @if ($div==$item->IdDivisiones)
-                      @if ($item->Estados===2)
-                            <tr ALIGN="center">
-                              <td width="80"> <font size=2>{{$item->Id}}</font></td> 
-                              <td width="80"> <font size=2>{{$item->Proveedor}}</font></td> 
-                              <td width="80"> <font size=2>{{$item->Nit}}</font></td>                                                                                                                                                 
-                              <td width="80"> <font size=2>{{number_format($item->PrecioTotal,2)}}</font></td>  
-                              <td width="80"> <font size=2>{{$item->OrdenPedido}}</font></td>  
-                              <td width="80"> <font size=2>{{$item->FechaIngreso}}</font></td>    
-                              <td width="80"> <font size=2>{{$item->Nfactura}}</font></td>                      
-                              <td width="80"> <font size=2>{{$item->Estado}}</font></td>  
-                              <td>
-                              <font size=4> <a data-placement="left" data-toggle="tooltip" title="ver" href="{{route('FVistaAprobadas',['id'=>Crypt::encrypt($item->Id)])}}"><i class="far fa-eye"></i></a> </font> 
-                              <font size=4> <a data-placement="left" data-toggle="tooltip" title="ver" href="{{route('EditarSolicitud',['id'=>Crypt::encrypt($item->Id)])}}"><i style="color: green" class="fas fa-edit nav-icon"></i></a> </font> 
-                              </td>
-                            </tr>                           
-                          @else                              
-                        @endif                      
-                    @endif                      
-                  @endforeach                                                                          
-              </table>  
-            </div>
-              <div style="text-align:center;">
-                <table ALIGN="center">
-                  <tr >
-                    <td >
-                      <p> {{$SoliPendi->total()}} Registros | Página {{$SoliPendi->currentPage()}} de {{$SoliPendi->lastPage()}}</p> 
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      {{$SoliPendi->links()}}
-                     </td>                                       
-                  </tr>                                                           
-                </table>
-              </div>                                                  
-          </div>            
+@if ($SoliPendi->lastPage() > 1)
+    <div class="inv-pie mt-3">
+        <span class="inv-texto-2">Página {{ $SoliPendi->currentPage() }} de {{ $SoliPendi->lastPage() }}</span>
+        <div class="inv-paginacion">{{ $SoliPendi->links('pagination::bootstrap-4') }}</div>
+    </div>
+@endif
 @endsection
-
-
-
-
-
-

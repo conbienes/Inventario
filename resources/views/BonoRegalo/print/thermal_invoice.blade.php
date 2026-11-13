@@ -1,37 +1,42 @@
 <!doctype html>
-<html>
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <title>Recibo de caja {{ $facturaNo }}</title>
 <style>
-  /* ↓ Baja a 76 mm para que no corte el borde derecho */
+  /* Papel térmico de 76 mm: ancho fijo, alto automático */
   @page { size: 76mm auto; margin: 2mm; }
 
-  /* ↓ Acolchado extra a la derecha (gutter) */
   body {
     font-family: monospace;
     font-size: 12px;
     margin: 0;
     padding: 2mm 4mm 2mm 2mm; /* top right bottom left */
     color: #000;
+    background: #fff;
+    text-align: left;
   }
 
   .center { text-align: center; }
   .right  { text-align: right; }
-  .small  { font-size: 10px; }
+  .small  { font-size: 11px; color: #000; }
+  .total  { font-size: 13px; font-weight: bold; }
 
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   td, th {
     padding: 2px 0;
     vertical-align: top;
+    color: #000;
     word-break: break-word;
     overflow-wrap: anywhere;
-    /* Evita que los números se partan y empujen fuera del borde: */
-    white-space: nowrap;
   }
+  /* Números y cantidades no se parten */
+  td.right, td.center, th.right, th.center { white-space: nowrap; }
+  th { font-weight: bold; }
+
   .hr  { border-top: 1px dashed #000; margin: 6px 0; }
   .gap-1cm { height: 10mm; }
-  .note { font-size: 9px; line-height: 1.25; text-align: justify; }
+  .note { font-size: 11px; line-height: 1.3; text-align: left; color: #000; }
 
   @media print { .no-print { display: none; } }
 </style>
@@ -55,13 +60,12 @@
 
   <div class="hr"></div>
 
-  <!-- ↓ Colgroup con anchos fijos (ligeramente más angosto el precio) -->
   <table>
     <colgroup>
       <col style="width: 44%;">
       <col style="width: 10%;">
       <col style="width: 22%;">
-      <col style="width: 24%;"> <!-- TOTAL un poco más ancho -->
+      <col style="width: 24%;">
     </colgroup>
     <thead>
       <tr>
@@ -97,8 +101,8 @@
       <col style="width: 24%;">
     </colgroup>
     <tr>
-      <td class="right"><strong>TOTAL:</strong></td>
-      <td class="right">{{ number_format($total, 0) }}</td>
+      <td class="right total"><strong>TOTAL:</strong></td>
+      <td class="right total">{{ number_format($total, 0) }}</td>
     </tr>
   </table>
 

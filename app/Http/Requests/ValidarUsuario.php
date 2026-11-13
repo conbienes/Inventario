@@ -16,7 +16,7 @@ class ValidarUsuario extends FormRequest
 
         if ($this->route('id')) {
             return [
-                'cedula' => 'required|integer|min:5|max:99999999999|unique:empleados,id,' . $this->route('id'),
+                'cedula' => 'required|integer|min:5|max:99999999999|unique:empleados,cedula,' . $this->route('id'),
                 'nombre' => 'required|min:4|max:255|string',
                 'apellidos' => 'required|min:4|max:255|string',
                 'id_sexo' => 'required',
@@ -24,7 +24,8 @@ class ValidarUsuario extends FormRequest
                 'id_tipoempleado' => 'required',
                 'id_div' => 'required',
                 'id_area' => 'required',
-                'password' => 'nullable',
+                'email' => 'nullable|email|max:255',
+                'password' => ['nullable', 'string', 'min:8', 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[^A-Za-z0-9]/'],
             ];
         } else {
             return [
@@ -36,7 +37,8 @@ class ValidarUsuario extends FormRequest
                 'id_tipoempleado' => 'required',
                 'id_div' => 'required',
                 'id_area' => 'required',
-                'password' => 'nullable|min:5',
+                'email' => 'nullable|email|max:255',
+                'password' => ['required', 'string', 'min:8', 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[^A-Za-z0-9]/'],
             ];
         }
     }
@@ -86,6 +88,8 @@ class ValidarUsuario extends FormRequest
 
         'password.min' => 'La contraseña debe tener al menos :min caracteres.',
         'password.same' => 'Las contraseñas no coinciden.',
+        'password.required' => 'Debe escribir una contraseña para el nuevo empleado.',
+        'password.regex' => 'La contraseña debe incluir mayúscula, número y carácter especial.',
     ];
 }
 

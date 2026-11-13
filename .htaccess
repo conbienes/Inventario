@@ -1,0 +1,16 @@
+# Seguridad: la aplicación se sirve desde public/. Desde la raíz del proyecto no se
+# muestran listados de carpetas ni se entregan archivos internos (.env, .git, código, logs).
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Archivos y carpetas ocultos (.env, .git, .gitignore, .htaccess, ...)
+    RewriteRule (^|/)\. - [F,L]
+
+    # Código, configuración, dependencias y registros: nunca accesibles por URL
+    RewriteRule ^(app|bootstrap|config|database|routes|storage|tests|vendor|resources|\.agents|\.puente)(/|$) - [F,L]
+
+    # Archivos de proyecto en la raíz
+    RewriteRule ^(artisan|composer\.(json|lock)|package(-lock)?\.json|phpunit\.xml|vite\.config\.js|README\.md)$ - [F,L]
+</IfModule>

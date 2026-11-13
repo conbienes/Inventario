@@ -1,5 +1,9 @@
 @extends("theme.$theme.layout")
 
+@push('css')
+    @include('BonoRegalo.partials._estilos')
+@endpush
+
 @section('content')
     <div class="container-fluid">
         <div class="row justify-content-center">
@@ -92,7 +96,7 @@
                                     {{-- EMPRESA --}}
                                     <div id="empresaFields"
                                          style="display: {{ $esNit ? 'block' : 'none' }}; background:#e8f5e8; padding:10px; border-radius:5px;">
-                                        <h5 style="color:green; margin-bottom:15px;">{{ __('Datos de Empresa') }}</h5>
+                                        <h5 style="color:var(--br-success); margin-bottom:15px;">{{ __('Datos de Empresa') }}</h5>
                                         <div class="form-group">
                                             <label for="razon_social">{{ __('Razón Social') }} <span class="text-danger">*</span></label>
                                             <input type="text" class="form-control" name="razon_social" id="razon_social"
@@ -104,7 +108,7 @@
                                     {{-- PERSONA NATURAL --}}
                                     <div id="personaFields"
                                          style="display: {{ $esNit ? 'none' : 'block' }}; background:#fff3cd; padding:10px; border-radius:5px;">
-                                        <h5 style="color:orange; margin-bottom:15px;">{{ __('Datos Personales') }}</h5>
+                                        <h5 style="color:var(--br-warning); margin-bottom:15px;">{{ __('Datos Personales') }}</h5>
 
                                         <div class="form-group">
                                             <label for="nombre">{{ __('Primer Nombre') }} <span class="text-danger">*</span></label>
@@ -162,7 +166,7 @@
     </div>
 @endsection
 
-@push('scripts')
+@push('js')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -218,7 +222,7 @@
                     }
                     Swal.fire({
                         title: 'Actualizando cliente...',
-                        html: '<div style="font-size:0.95em; color:#666;">Sincronizando</div>',
+                        html: '<div style="font-size:0.95em; color:#4B5563;">Sincronizando</div>',
                         allowOutsideClick: false,
                         allowEscapeKey: false,
                         showConfirmButton: false,

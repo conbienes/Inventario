@@ -1,123 +1,129 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
 
 @section('content')
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<div class="inv-cabecera">
+    <div>
+        <h1 class="inv-titulo">Aprobar productos recibidos</h1>
+        <p class="inv-subtitulo">Indique las cantidades recibidas de cada producto y el estado de la entrega.</p>
+    </div>
+    <div class="inv-acciones">
+        <a class="btn btn-outline-secondary" href="{{ route('SolicPendFacturas', ['id' => Crypt::encrypt($div->id)]) }}"><i class="fas fa-arrow-left"></i> Volver</a>
+    </div>
+</div>
 
-    <!-- Modal -->
-    <div id="myModal" class="modal fade">
-        <div class="modal-header ">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5> <strong>APROBAR PRODUCTOS RECIBIDOS</strong></h5>
-                </div>
-                <div class="card-body">
-                    <table class="table-striped table-bordered">
-                        <form action="{{ route('AprobarItems') }}" method="POST">
-                            @csrf
-                            <div ALIGN="center" class="form-group">
-                                <label for="selec-comunidad">Estado </label>
-                                <select class="form-select" name="Estado" id="Estado" required>
-                                    <option></option>
-                                    <option value="1">Parcial</option>
-                                    <option value="3">Cerrar entrega parcial</option>
-                                    <option value="2">Pedido Completo</option>
-                                </select>
-                            </div>
+@include('Inventario.partials.pasos', ['pasos' => ['Revisar lo recibido', 'Calificar proveedor', 'Notificar al personal'], 'actual' => 1])
 
-                            <br>
-                            <thead>
-                                <tr ALIGN="center">
-                                    <th width="450"scope="col">Producto</th>
-                                    <th width="200"scope="col">Cantidad Solicitada</th>
-                                    <th width="200"scope="col">Cantidades Recibidas</th>
-                                    <th width="650"scope="col">Comentario</th>
-                                    <th width="200"scope="col">Cantidad Recibida </th>
-                                    <th width="550"scope="col">Comentario</th>
-                                </tr>
-                            </thead>
+@if ($errors->any())
+    <div class="alert alert-danger" role="alert">
+        <ul class="mb-0 pl-3">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
 
-                            @foreach ($SoliPendi as $item)
-                                @if ($item->Completas == 0)
-                                    <tr ALIGN="center">
-                                        <td width="80">
-                                            <font size=2><input type="hidden" value="{{ $item->Id }}" name="IdItem[]">
-                                                {{ $item->Producto }}"</font>
-                                        </td>
-                                        <td width="80">
-                                            <font size=3>{{ $item->Cantidades }}</font>
-                                        </td>
-                                        <td width="80">
-                                            <font size=3>{{ $item->Aprobadas }}</font>
-                                        </td>
-                                        <td width="80">
-                                            <font size=3>{{ $item->Comentario }}</font>
-                                        </td>
-                                        <td><input type="number" type="hidden" name="Catidad[]" id="Catidad"
-                                                style="width : 50px; heigth : 10px" autocomplete="off"></td>
-                                        <td>
-                                            <textarea name="Comentario[]" id="Comentario" maxlength="150" cols="80" rows="1" autocomplete="off"></textarea>
-                                        </td>
-                                    </tr>
-                                    <input type="hidden" value="{{ $item->RegistroFactura }}" name="RegistroFactura">
-                                    </font>
-                                    </td>
-                                    <input type="hidden" value="{{ $item->Inventario }}" name="Inventario[]"></font>
-                                    </td>
-                                @endif
-                            @endforeach
-
-                            <table class="table" style="width : 50px; heigth : 10px" ALIGN="center">
-                                <tr>
-                                    <td>
-                                        <div class="form-group">
-                                            <button type="submit" class="btn btn-success">{{ __('Aprobar') }}</button>
-                                        </div>
-                                    </td>
-                        </form>
-
-                        <td>
-                            <div class="form-group ">
-                                <a class="btn btn-danger"
-                                    href="{{ route('SolicPendFacturas', ['id' => Crypt::encrypt($div->id)]) }}">{{ __('Cancelar') }}
-                                </a>
-                            </div>
-                        </td>
-                        </tr>
-                    </table>
-
-
-                </div>
+<form method="POST" action="{{ route('AprobarItems') }}">
+    @csrf
+    <div class="inv-tarjeta mb-3">
+        <div class="inv-seccion"><i class="fas fa-truck-loading"></i> ¿Cómo llegó la entrega? <span class="inv-campo-obligatorio">*</span></div>
+        <div class="inv-opciones" role="radiogroup" aria-label="Estado de la entrega">
+            <div class="inv-opcion">
+                <input type="radio" name="Estado" id="estado2" value="2" required>
+                <label for="estado2">
+                    <span class="inv-opcion__ico" style="background:#DCFCE7;color:#15803D"><i class="fas fa-check-double"></i></span>
+                    <span><strong>Llegó completo</strong><small>Se recibió todo lo solicitado. No hace falta escribir cantidades.</small></span>
+                </label>
+            </div>
+            <div class="inv-opcion">
+                <input type="radio" name="Estado" id="estado1" value="1">
+                <label for="estado1">
+                    <span class="inv-opcion__ico" style="background:#FEF3C7;color:#B45309"><i class="fas fa-hourglass-half"></i></span>
+                    <span><strong>Llegó una parte</strong><small>El pedido sigue abierto para recibir lo que falta.</small></span>
+                </label>
+            </div>
+            <div class="inv-opcion">
+                <input type="radio" name="Estado" id="estado3" value="3">
+                <label for="estado3">
+                    <span class="inv-opcion__ico" style="background:#E0F2FE;color:#005484"><i class="fas fa-lock"></i></span>
+                    <span><strong>Parcial y cerrar</strong><small>Llegó una parte y no se espera más. Se cierra con lo recibido.</small></span>
+                </label>
             </div>
         </div>
     </div>
 
-    <script>
-        $(document).ready(function() {
-            $('#myModal').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show')
-        });
-    </script>
+    <div class="inv-tabla-wrap mt-3">
+        <div class="table-responsive">
+            <table class="table inv-tabla" data-filtro-rapido>
+                <thead>
+                    <tr>
+                        <th scope="col">Producto</th>
+                        <th scope="col" style="min-width:150px">Recibido hasta ahora</th>
+                        <th scope="col">Comentario anterior</th>
+                        <th scope="col">Cantidad recibida ahora</th>
+                        <th scope="col">Comentario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($SoliPendi as $item)
+                        @if ($item->Completas == 0)
+                            <tr>
+                                <td class="font-weight-bold">
+                                    {{ $item->Producto }}
+                                    <input type="hidden" name="IdItem[]" value="{{ $item->Id }}">
+                                    <input type="hidden" name="Inventario[]" value="{{ $item->Inventario }}">
+                                    <input type="hidden" name="RegistroFactura" value="{{ $item->RegistroFactura }}">
+                                </td>
+                                @php $pct = $item->Cantidades > 0 ? min(100, round($item->Aprobadas / $item->Cantidades * 100)) : 0; @endphp
+                                <td>
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <span><strong>{{ $item->Aprobadas + 0 }}</strong> de {{ $item->Cantidades + 0 }}</span>
+                                        <span class="text-muted">{{ $pct }}%</span>
+                                    </div>
+                                    <div class="inv-avance"><span style="width: {{ $pct }}%"></span></div>
+                                </td>
+                                <td class="inv-texto-2">{{ $item->Comentario }}</td>
+                                <td>
+                                    <input type="number" name="Catidad[]" class="form-control form-control-sm" min="0" step="any"
+                                           style="min-width: 110px;" autocomplete="off" aria-label="Cantidad recibida de {{ $item->Producto }}">
+                                </td>
+                                <td>
+                                    <textarea name="Comentario[]" class="form-control form-control-sm" maxlength="150" rows="1"
+                                              autocomplete="off" aria-label="Comentario de {{ $item->Producto }}"></textarea>
+                                </td>
+                            </tr>
+                        @endif
+                    @empty
+                        <tr>
+                            <td colspan="5">
+                                <div class="inv-vacio"><i class="fas fa-inbox"></i><p>No hay productos pendientes de aprobar.</p></div>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-    <script>
-        $(function() {
-            $("#Estado").change(function() {
-                if ($(this).val() === "2") {
-                    $("input").prop('hidden', true);
-                    $("textarea").prop('hidden', true);
-                }
-            });
-        });
-    </script>
-    <script>
-        $(function() {
-            $("#Estado").change(function() {
-                if ($(this).val() === "1") {
-                    $("textarea").prop('hidden', false);
-                    $("input").prop('hidden', false);
-                }
-            });
-        });
-    </script>
+    <div class="inv-acciones inv-acciones--fin mt-3">
+        <a class="btn btn-outline-secondary" href="{{ route('SolicPendFacturas', ['id' => Crypt::encrypt($div->id)]) }}">{{ __('Cancelar') }}</a>
+        <button type="submit" class="btn btn-success btn-lg"><i class="fas fa-check mr-1"></i> {{ __('Aprobar y continuar') }}</button>
+    </div>
+</form>
+@push('js')
+<script>
+    // Pedido completo (2) no usa las cantidades recibidas: se deshabilitan para no enviarlas.
+    $(function () {
+        function ajustarCantidades() {
+            var completo = $('input[name="Estado"]:checked').val() === '2';
+            $('input[name="Catidad[]"]').prop('disabled', completo)
+                .attr('placeholder', completo ? 'Completo' : '');
+        }
+        $('input[name="Estado"]').on('change', ajustarCantidades);
+        ajustarCantidades();
+    });
+</script>
+@endpush
 @endsection

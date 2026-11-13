@@ -1,275 +1,137 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
+
+@push('css')
+<link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2/css/select2.min.css') }}">
+<link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+@endpush
+
+@push('js')
+<script src="{{ asset('assets/lte/plugins/select2/js/select2.full.min.js') }}"></script>
+<script>
+    // Selectores con busqueda remota. Las URL se generan con url() para respetar el prefijo /Inventario/public.
+    function inventarioSelect(selector, endpoint, etiqueta) {
+        $(selector).select2({
+            theme: 'bootstrap4',
+            width: '100%',
+            placeholder: 'Escriba para buscar ' + etiqueta.toLowerCase(),
+            language: {
+                noResults: function () { return etiqueta + ' no encontrado'; },
+                searching: function () { return 'Buscando...'; }
+            },
+            ajax: {
+                url: endpoint,
+                dataType: 'json',
+                delay: 250,
+                processResults: function (data) {
+                    return {
+                        results: $.map(data, function (item) {
+                            return { text: item.Nombre, id: item.Id };
+                        })
+                    };
+                },
+                cache: true
+            }
+        });
+    }
+
+    $(function () {
+        inventarioSelect('#Division', "{{ url('/Ajax/Division') }}", 'División');
+        inventarioSelect('#Almacen', "{{ url('/Ajax/Almacen') }}", 'Almacén');
+        inventarioSelect('#Categoria', "{{ url('/Ajax/Categoria') }}", 'Categoría');
+        inventarioSelect('#Producto', "{{ url('/Ajax/Producto') }}", 'Producto');
+    });
+</script>
+@endpush
 
 @section('content')
-
-    <link rel="stylesheet" type="text/css"
-        href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.0.0-alpha1/css/bootstrap.min.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@9.17.2/dist/sweetalert2.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/sweetalert2@9.17.2/dist/sweetalert2.min.css">
-
-
-    <!-- Modal -->
-    <div class="card card-primary">
-        <div class="card-header">
-            <h3 class="card-title">{{ __('CREAR') }}</h3>
-        </div>
-
-        <div class="modal-content ">
-            <div class="modal-content">
-                @if ($errors->any())
-                    <div class="alert alert-danger">
-                        <ul>
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-
-                <form method="POST" action="{{ route('Guardar_Inventario') }}">
-                    @csrf
-                    <div class="card-body">
-                        <div class="form-group">
-                            <label for="Nombre">{{ __('Division') }}</label><BR>
-                            <select class="Division" style="width: 100%" name="Division" id="Division"
-                                value="pureba"></select>
-                        </div>
-                        <div class="form-group">
-                            <label for="Almacen">{{ __('Almacen') }}</label><br>
-                            <select class="Almacen" style="width: 100%" name="Almacen" id="Almacen"></select>
-                        </div>
-                        <div class="form-group">
-                            <label for="Nombre">{{ __('Categoria') }}</label><br>
-                            <select class="Categoria" style="width: 100%" name="Categoria" id="Categoria"></select>
-                        </div>
-                        <div class="form-group">
-                            <label for="Nombre">{{ __('Producto') }}</label><br>
-                            <select class="Producto " name="Producto" style="width: 100%" id="Producto">
-                                <option value=""></option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="Estanteria">{{ __('Estanteria') }}</label>
-                            <input type="text" class="form-control" name="Estanteria" autocomplete="off" autofocus
-                                required>
-                        </div>
-                        <div class="form-group">
-                            <label for="Nombre">{{ __('Entrepaño') }}</label>
-                            <input type="Entrepaño" class="form-control" name="Entrepaño" autocomplete="off" autofocus
-                                required>
-                        </div>
-                        <div class="form-group">
-                            <label for="Gaveta">{{ __('Gaveta') }}</label>
-                            <input type="text" class="form-control" name="Gaveta" autocomplete="off" autofocus required>
-                        </div>
-                        <div class="form-group">
-                            <label for="Nombre">{{ __('Cantidades Inventario') }}</label>
-                            <input type="text" class="form-control" name="Cantidades" autocomplete="off" autofocus
-                                required>
-                        </div>
-                        <div class="form-group">
-                            <label for="Nombre">{{ __('Cantidad Minima') }}</label>
-                            <input type="text" class="form-control" name="CantidadMax" autocomplete="off" autofocus
-                                required>
-                        </div>
-                        <div class="form-group">
-                            <label for="Nombre">{{ __('Cantidad Maxima') }}</label>
-                            <input type="text" class="form-control" name="CantidadMin" autocomplete="off" autofocus
-                                required>
-                        </div>
-                        <table class="table">
-                            <tr ALIGN="center">
-                                <td>
-                                    <div class="form-group">
-                                        <button type="submit" class="btn btn-success">{{ __('Crear') }}</button>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="form-group ">
-                                        <a class="btn btn-danger" href="javascript: history.go(-1)">{{ __('Cancelar') }}
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                </form>
+<div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Agregar producto al inventario</h3>
             </div>
+
+            <form method="POST" action="{{ route('Guardar_Inventario') }}">
+                @csrf
+                <div class="card-body">
+                    @if ($errors->any())
+                        <div class="alert alert-danger mb-3">
+                            <ul class="mb-0 pl-3">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <p class="inv-ayuda mb-3">Todos los campos son obligatorios. Escriba en los buscadores para elegir un valor de la lista.</p>
+
+                    <h5 class="inv-texto font-weight-bold mb-2">Ubicación</h5>
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label for="Division">División <span class="inv-campo-obligatorio">*</span></label>
+                            <select id="Division" name="Division" class="form-control"></select>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label for="Almacen">Almacén <span class="inv-campo-obligatorio">*</span></label>
+                            <select id="Almacen" name="Almacen" class="form-control"></select>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label for="Categoria">Categoría <span class="inv-campo-obligatorio">*</span></label>
+                            <select id="Categoria" name="Categoria" class="form-control"></select>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label for="Producto">Producto <span class="inv-campo-obligatorio">*</span></label>
+                            <select id="Producto" name="Producto" class="form-control"></select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 form-group">
+                            <label for="Estanteria">Estantería <span class="inv-campo-obligatorio">*</span></label>
+                            <input type="text" id="Estanteria" name="Estanteria" class="form-control"
+                                   value="{{ old('Estanteria') }}" autocomplete="off" required>
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label for="Entrepaño">Entrepaño <span class="inv-campo-obligatorio">*</span></label>
+                            <input type="text" id="Entrepaño" name="Entrepaño" class="form-control"
+                                   value="{{ old('Entrepaño') }}" autocomplete="off" required>
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label for="Gaveta">Gaveta <span class="inv-campo-obligatorio">*</span></label>
+                            <input type="text" id="Gaveta" name="Gaveta" class="form-control"
+                                   value="{{ old('Gaveta') }}" autocomplete="off" required>
+                        </div>
+                    </div>
+
+                    <h5 class="inv-texto font-weight-bold mb-2 mt-2">Cantidades</h5>
+                    <div class="row">
+                        <div class="col-md-4 form-group">
+                            <label for="Cantidades">Cantidad en inventario <span class="inv-campo-obligatorio">*</span></label>
+                            <input type="number" id="Cantidades" name="Cantidades" class="form-control"
+                                   value="{{ old('Cantidades') }}" min="0" step="any" autocomplete="off" required>
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label for="CantidadMin">Cantidad mínima <span class="inv-campo-obligatorio">*</span></label>
+                            <input type="number" id="CantidadMin" name="CantidadMin" class="form-control"
+                                   value="{{ old('CantidadMin') }}" min="0" step="any" autocomplete="off" required>
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label for="CantidadMax">Cantidad máxima <span class="inv-campo-obligatorio">*</span></label>
+                            <input type="number" id="CantidadMax" name="CantidadMax" class="form-control"
+                                   value="{{ old('CantidadMax') }}" min="0" step="any" autocomplete="off" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer inv-acciones inv-acciones--fin">
+                    <a href="{{ route('Inventario') }}" class="btn btn-outline-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-success">Crear</button>
+                </div>
+            </form>
         </div>
     </div>
-
-
-    <script type="text/javascript">
-        $('.Division').select2({
-            theme: "classic",
-            language: {
-                noResults: function() {
-                    return "Division no encontrada";
-                },
-                searching: function() {
-                    return "Buscando......."
-                }
-            },
-
-            ajax: {
-                url: '/Ajax/Division',
-                dataType: 'json',
-                delay: 250,
-                processResults: function(data) {
-                    return {
-                        results: $.map(data, function(item) {
-                            return {
-                                text: item.Nombre,
-                                id: item.Id
-                            }
-                        })
-                    };
-                },
-                cache: true
-            }
-        });
-    </script>
-
-    <script type="text/javascript">
-        $('.Almacen').select2({
-            theme: "classic",
-            language: {
-                noResults: function() {
-                    return "Almacen no encontrado";
-                },
-                searching: function() {
-                    return "Buscando......."
-                }
-            },
-            ajax: {
-                url: '/Ajax/Almacen',
-                dataType: 'json',
-                delay: 250,
-                processResults: function(data) {
-                    return {
-                        results: $.map(data, function(item) {
-                            return {
-                                text: item.Nombre,
-                                id: item.Id
-                            }
-                        })
-                    };
-                },
-                cache: true
-            }
-        });
-    </script>
-
-
-    <script type="text/javascript">
-        $('#Producto').focus();
-        $('#Producto').prop('disabled', false);
-
-        $('.Producto').select2({
-            theme: "classic",
-            language: {
-                noResults: function() {
-                    return "Producto no encontrado";
-                },
-                searching: function() {
-                    return "Buscando......."
-                }
-            },
-            ajax: {
-                url: '/Ajax/Producto',
-                dataType: 'json',
-                delay: 250,
-                processResults: function(data) {
-                    return {
-                        results: $.map(data, function(item) {
-                            return {
-                                text: item.Nombre,
-                                id: item.Id
-                            }
-                        })
-                    };
-                },
-                cache: true
-            }
-        });
-    </script>
-
-    <script type="text/javascript">
-        $('.Categoria').select2({
-            theme: "classic",
-            language: {
-                noResults: function() {
-                    return "Categoria no encontrada";
-                },
-                searching: function() {
-                    return "Buscando......."
-                }
-            },
-            ajax: {
-                url: '/Ajax/Categoria',
-                dataType: 'json',
-                delay: 250,
-                processResults: function(data) {
-                    return {
-                        results: $.map(data, function(item) {
-                            return {
-                                text: item.Nombre,
-                                id: item.Id
-                            }
-                        })
-                    };
-                },
-                cache: true
-            }
-        });
-    </script>
-
+</div>
 @endsection
-
-<style>
-       .modal-content {
-        width: 80%; /* Ajusta este valor según sea necesario */
-        max-width: 600px; /* Limita el ancho máximo si es necesario */
-        margin: auto; /* Centra el modal */
-    }
-    .select2-search__field {
-        user-select: text;
-    }
-
-    .select2-container--material {
-        width: 100% !important;
-        font-size: 80%
-    }
-
-    .select2-container--material .select2-selection--single {
-        background-color: transparent;
-        border: none;
-        border-bottom: 0.5px solid #ced4da;
-        border-radius: 0;
-        box-shadow: none;
-        box-sizing: content-box;
-        height: auto;
-        margin: 0;
-        outline: none;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    }
-
-    .select2-container--material .select2-selection--single .select2-selection__placeholder {
-        color: #999;
-    }
-
-    .select2-container--material .select2-search--dropdown .select2-search__field {
-        border: none;
-        border-bottom: 0.5px solid #ced4da;
-        border-radius: 0;
-        outline: none;
-    }
-
-    .select2-container--material .select2-results__option--highlighted[aria-selected] {
-        background-color: #3498DB;
-        color: rgb(0, 0, 0);
-    }
-</style>

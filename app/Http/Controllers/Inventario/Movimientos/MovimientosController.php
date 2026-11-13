@@ -117,7 +117,7 @@ class MovimientosController extends Controller
 
                 Session::flash('success','La salida del producto con el código '.$request['Id'].' fue correcta ');
 
-                return Redirect::to('/Inventario');
+                return redirect()->route('Inventario');
             }
             else
             {
@@ -146,7 +146,7 @@ class MovimientosController extends Controller
 
             Session::flash('success','El ingreso del producto con el codigo '.$request['Id'].' fue correcta ');
 
-            return Redirect::to('/Inventario');
+            return redirect()->route('Inventario');
         }
         else
         {

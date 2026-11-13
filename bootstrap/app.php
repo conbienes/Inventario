@@ -26,6 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         ]);
 
+        // Aviso de "descarga lista" para exportaciones (ver App\Http\Middleware\MarcarDescarga)
+        $middleware->web(append: [\App\Http\Middleware\MarcarDescarga::class]);
+        $middleware->encryptCookies(except: ['descarga_token']);
+
         /**
          * Prioridad de ejecución del middleware
          */

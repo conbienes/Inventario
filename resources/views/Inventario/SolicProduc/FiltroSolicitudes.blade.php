@@ -1,81 +1,91 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
 
-@section('content')
+@push('css')
+    <link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2/css/select2.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+@endpush
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/js/select2.min.js"></script>
-    @if ($errors->any())
-        <div class="alert alert-danger">
-            <ul>
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-    <!-- Formulario -->
-    <form method="POST" action="{{ route('TotalAprobadasP') }}">
-        @csrf
-        <div class="card-body">
-            <!-- Fecha Inicial -->
-            <div class="form-group">
-                <label for="FechaInicial">{{ __('Fecha Inicial') }}</label>
-                <input type="date" class="form-control" name="FechaInicial" id="FechaInicial" autocomplete="off" autofocus required>
-            </div>
-
-            <!-- Fecha Final -->
-            <div class="form-group">
-                <label for="FechaFinal">{{ __('Fecha Final') }}</label>
-                <input type="date" class="form-control" name="FechaFinal" id="FechaFinal" autocomplete="off" autofocus required>
-            </div>
-
-            <!-- Empleado -->
-            <div class="form-group">
-                <label for="Empleados">{{ __('Empleado') }}</label>
-                <select class="Empleados form-control" style="width: 100%" name="Empleados" id="Empleados"
-                    autocomplete="off">
-                </select>
-            </div>
-
-            <!-- Botones de acción -->
-            <div class="form-group text-center mt-4">
-                <button type="submit" class="btn btn-success mr-2">{{ __('Filtrar') }}</button>
-                <a class="btn btn-danger" href="{{ route('TotalAprobadas') }}">{{ __('Cancelar') }}</a>
-            </div>
-        </div>
-    </form>
-
-
-    <script type="text/javascript">
-        $('.Empleados').select2({
-
-            theme: "classic",
-            language: {
-                noResults: function() {
-                    return "Producto no encontrado";
+@push('js')
+    <script src="{{ asset('assets/lte/plugins/select2/js/select2.full.min.js') }}"></script>
+    <script>
+        $(function () {
+            $('.Empleados').select2({
+                theme: 'bootstrap4',
+                placeholder: 'Todos los empleados',
+                allowClear: true,
+                language: {
+                    noResults: function () { return 'Empleado no encontrado'; },
+                    searching: function () { return 'Buscando...'; },
+                    inputTooShort: function () { return 'Escriba al menos 2 letras del nombre'; }
                 },
-                searching: function() {
-                    return "Buscando......."
+                minimumInputLength: 2,
+                ajax: {
+                    url: '{{ url('/Ajax/Empleados') }}',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) { return { q: params.term }; },
+                    processResults: function (data) {
+                        return {
+                            results: $.map(data, function (item) {
+                                return { text: item.nombre + ' ' + item.apellidos, id: item.id };
+                            })
+                        };
+                    },
+                    cache: true
                 }
-            },
-            ajax: {
-                url: '/Ajax/Empleados',
-                dataType: 'json',
-                delay: 250,
-                processResults: function(data) {
-                    return {
-                        results: $.map(data, function(item) {
-                            return {
-                                text: item.nombre + " " + item.apellidos,
-                                id: item.id
-                            }
-                        })
-                    };
-                },
-                cache: true
-            }
+            });
         });
     </script>
+@endpush
 
+@section('content')
+<div class="inv-cabecera">
+    <div>
+        <h1 class="inv-titulo">Filtrar solicitudes aprobadas</h1>
+        <p class="inv-subtitulo">Indique el rango de fechas y, opcionalmente, un empleado.</p>
+    </div>
+    <div class="inv-acciones">
+        <a class="btn btn-outline-secondary" href="{{ route('TotalAprobadas') }}"><i class="fas fa-arrow-left"></i> Volver</a>
+    </div>
+</div>
+
+<div class="inv-tarjeta-wrap">
+    <form method="POST" action="{{ route('TotalAprobadasP') }}" class="inv-tarjeta p-3 p-md-4">
+        @csrf
+
+        @if ($errors->any())
+            <div class="alert alert-danger" role="alert">
+                <ul class="mb-0 pl-3">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <div class="row">
+            <div class="form-group col-md-4">
+                <label for="FechaInicial">Fecha inicial <span class="inv-campo-obligatorio">*</span></label>
+                <input type="date" class="form-control" name="FechaInicial" id="FechaInicial" autocomplete="off" required>
+            </div>
+
+            <div class="form-group col-md-4">
+                <label for="FechaFinal">Fecha final <span class="inv-campo-obligatorio">*</span></label>
+                <input type="date" class="form-control" name="FechaFinal" id="FechaFinal" autocomplete="off" required>
+            </div>
+
+            <div class="form-group col-md-4">
+                <label for="Empleados">Empleado <span class="inv-ayuda">(opcional)</span></label>
+                <select class="Empleados form-control" name="Empleados" id="Empleados" autocomplete="off"></select>
+            </div>
+        </div>
+
+        <div class="inv-acciones inv-acciones--fin mt-2">
+            <a class="btn btn-outline-secondary" href="{{ route('TotalAprobadas') }}">Cancelar</a>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Aplicar filtro</button>
+        </div>
+    </form>
+</div>
 @endsection

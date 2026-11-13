@@ -143,8 +143,16 @@ Route::prefix('Inventario')
         Route::get('/{id}/Producto', [InventarioController::class, 'Producto'])->name('Consultar_Producto');
         Route::get('/Crear', [InventarioController::class, 'Crear'])->name('Crear_Inventario');
         Route::post('/Crear', [InventarioController::class, 'Guardar'])->name('Guardar_Inventario');
-        Route::get('/{id}/Editar', [InventarioController::class, 'editar'])->name('editar_Inventario');
-        Route::post('/Actualizar', [InventarioController::class, 'Actualizar'])->name('actualizar_Inventario');
+        // Edición de inventario retirada: su pantalla fallaba (500) y ningún enlace la usaba.
+    });
+
+// Directorio de empleados y correos: solo administradores del módulo 1 (evita enumeración por cualquier usuario)
+Route::prefix('Ajax')
+    ->middleware(['auth', 'nivel:1,1|2'])
+    ->group(function () {
+        Route::get('/Empleado', [AjaxController::class, 'Empleado']);
+        Route::get('/Empleados', [AjaxController::class, 'Empleados']);
+        Route::get('/Correos', [AjaxController::class, 'Correos']);
     });
 
 // Rutas AJAX
@@ -154,8 +162,6 @@ Route::prefix('Ajax')
         Route::get('/Division', [AjaxController::class, 'Division']);
         Route::get('/Almacen', [AjaxController::class, 'Almacen']);
         Route::get('/Categoria', [AjaxController::class, 'Categoria']);
-        Route::get('/Empleado', [AjaxController::class, 'Empleado']);
-        Route::get('/Empleados', [AjaxController::class, 'Empleados']);
         Route::get('/Area', [AjaxController::class, 'Area']);
         Route::get('/topografica', [AjaxController::class, 'topografica']);
         Route::get('/Proveedor', [AjaxController::class, 'Proveedor']);
@@ -164,7 +170,6 @@ Route::prefix('Ajax')
         Route::get('/Inventario2', [AjaxController::class, 'Inventario2']);
         Route::get('/Inventario3', [AjaxController::class, 'Inventario3']);
         Route::get('/Producto', [AjaxController::class, 'Producto']);
-        Route::get('/Correos', [AjaxController::class, 'Correos']);
         Route::get('/buscarClientesBR', [AjaxController::class, 'ClienteBonoR'])->name('buscarClientesBR');
         Route::get('/buscarTarjetasBR', [AjaxController::class, 'buscarTarjetasBR'])->name('buscarTarjetasBR');
     });
@@ -177,17 +182,16 @@ Route::prefix('EditInven')
         Route::get('/{Id}/EditarInventario', [EditInvenController::class, 'EditarInventario'])->name('EditarInventario');
         Route::post('/Actualizar', [EditInvenController::class, 'Actualizar'])->name('actualizar_EditInven');
         Route::post('/ActualizarInventario', [EditInvenController::class, 'ActualizarInventario'])->name('ActualizarInventario');
+        Route::post('/ActualizarLimites', [EditInvenController::class, 'ActualizarLimites'])->name('ActualizarLimites');
     });
 
 // Rutas para Movimientos
 Route::prefix('Movimientos')
     ->middleware(['auth', 'nivel:1,1|2'])
     ->group(function () {
-        Route::get('/', [MovimientosController::class, 'consultar'])->name('Movimientos');
-        Route::get('/Crear', [MovimientosController::class, 'Crear'])->name('Crear_Movimientos');
+        // Solo las rutas que tienen método y vista. (Se quitaron consultar, Crear y Actualizar: no existían.)
         Route::post('/CrearMovimi', [MovimientosController::class, 'Guardar'])->name('Guardar_Movimientos');
         Route::get('/{id}/Editar', [MovimientosController::class, 'editar'])->name('editar_Movimientos');
-        Route::post('/Actualizar', [MovimientosController::class, 'Actualizar'])->name('actualizar_Movimientos');
     });
 
 // Rutas para Solicitud de Productos
@@ -195,8 +199,7 @@ Route::prefix('SolicProduc')
     ->middleware(['auth', 'nivel:1,1|2|3'])
     ->group(function () {
         Route::get('/', [SolicProducController::class, 'Crear'])->name('Crear_SolicProduc');
-        Route::post('/Crear', [SolicProducController::class, 'IngProducto'])->name('IngProducto');
-        Route::get('/{id}/Editar', [SolicProducController::class, 'editar'])->name('editar_SolicProduc');
+        // Se quitaron IngProducto y editar: su vista/método no existían y ninguna pantalla las usa.
         Route::post('/Actualizar', [SolicProducController::class, 'Guardar'])->name('actualizar_SolicProduc');
     });
 
@@ -217,7 +220,6 @@ Route::prefix('EntAlmacen')
         Route::get('/{id}/Vista', [EntradaAlmacenController::class, 'Vista'])->name('Vista_EntAlmacen');
         Route::get('/{id}/{div}/AprobarFactura', [EntradaAlmacenController::class, 'AprobarFactura'])->name('AprobarFactura');
         Route::post('/CalificarPost', [EntradaAlmacenController::class, 'Calificar'])->name('CalificarPost');
-        Route::get('/Calificar', [EntradaAlmacenController::class, 'Calificar'])->name('Calificar');
         Route::post('/AprobarFactura', [EntradaAlmacenController::class, 'AprobarItems'])->name('AprobarItems');
     });
 
@@ -341,6 +343,9 @@ Route::middleware(['auth', 'nivel:3,1|2|5,any,eq:3'])
 
 //Route::get('/Share', [FileController::class, 'getFolderInmuebleCliente'])->name('files.index');
 
+// Documentos: todo el bloque exige sesión iniciada (antes era accesible sin login)
+Route::middleware(['auth'])->group(function () {
+
 Route::get('/DocumentalComercial/{idInmueble}/{email?}', [FileController::class, 'SiimComercial'])
     ->where('email', '.*')
     ->name('Siim.Comercial');
@@ -368,5 +373,7 @@ Route::get('/ExpInmueble/{id}/cargar', [ExpInmuebleController::class, 'VistaSubi
 Route::get('/ExpInmueble/{id}/Eliminar', [ExpInmuebleController::class, 'VistaEliminarDocumento'])->name('ExpInmueble.VistaDelete');
 Route::delete('/ExpInmueble/eliminar', [ExpInmuebleController::class, 'EliminarDocumento'])->name('ExpInmueble.eliminar');
 Route::post('/ExpInmueble/subir', [ExpInmuebleController::class, 'CargarDocumentos'])->name('ExpInmueble.subir');
+
+}); // fin grupo auth de documentos
 
 ?>

@@ -1,12 +1,16 @@
 @extends("theme.$theme.layout")
 
+@push('css')
+    @include('BonoRegalo.partials._estilos')
+@endpush
+
 @section('content')
     <div class="container-fluid pt-4 pb-2 no-bottom-gap">
         {{-- Header Mejorado --}}
         <div class="row mb-4">
             <div class="col-12">
                 <div class="dashboard-header">
-                    <h1 class="display-6 fw-bold text-white mb-2">🎁 Dashboard de Bonos Regalo</h1>
+                    <h1 class="display-6 font-weight-bold text-white mb-2"><i class="fas fa-chart-line mr-2"></i>Reporte de ventas</h1>
                     <p class="text-white-80 mb-0">Visualización en tiempo real de ventas y métricas</p>
                 </div>
             </div>
@@ -16,33 +20,33 @@
         <div class="row mb-4">
             <div class="col-12">
                 <div class="modern-card p-4">
-                    <form id="filtroVentas" method="GET" action="{{ route('BonoRegalo.ReporteVentas') }}" class="row g-3 align-items-end">
+                    <form id="filtroVentas" method="GET" action="{{ route('BonoRegalo.ReporteVentas') }}" class="row align-items-end">
                         @php
                             $hoy = now()->format('Y-m-d');
                         @endphp
 
                         <div class="col-12 col-md-2">
-                            <label for="from" class="form-label fw-semibold">📅 Desde</label>
+                            <label for="from" class="form-label font-weight-bold"><i class="far fa-calendar-alt mr-1"></i> Desde</label>
                             <input type="date" id="from" name="from" value="{{ request('from', $from) }}"
                                    class="form-control modern-input" max="{{ $hoy }}">
                         </div>
 
                         <div class="col-12 col-md-2">
-                            <label for="to" class="form-label fw-semibold">📅 Hasta</label>
+                            <label for="to" class="form-label font-weight-bold"><i class="far fa-calendar-alt mr-1"></i> Hasta</label>
                             <input type="date" id="to" name="to" value="{{ request('to', $to ) }}"
                                    class="form-control modern-input" max="{{ $hoy }}">
                         </div>
 
                         <div class="col-12 col-md-8 d-flex gap-2 justify-content-end">
                             <button type="submit" class="btn modern-btn primary">
-                                <i class="fas fa-filter me-2"></i>Aplicar Filtros
+                                <i class="fas fa-filter mr-2"></i>Aplicar Filtros
                             </button>
                             <a href="{{ route('BonoRegalo.ReporteVentas') }}" class="btn modern-btn secondary">
-                                <i class="fas fa-eraser me-2"></i>Limpiar
+                                <i class="fas fa-eraser mr-2"></i>Limpiar
                             </a>
                             <button type="submit" class="btn modern-btn success"
                                     formaction="{{ route('BonoRegalo.exportarFacturas') }}" formmethod="GET">
-                                <i class="fas fa-file-excel me-2"></i>Exportar Excel
+                                <i class="fas fa-file-excel mr-2"></i>Exportar Excel
                             </button>
                         </div>
                     </form>
@@ -51,7 +55,7 @@
         </div>
 
         {{-- KPIs Mejorados --}}
-        <div class="row g-4 mb-4">
+        <div class="row mb-4">
             <div class="col-12 col-md-4">
                 <div class="kpi-card primary">
                     <div class="kpi-icon">
@@ -61,7 +65,7 @@
                         <span class="kpi-label">TOTAL DINERO</span>
                         <h2 class="kpi-value">${{ number_format($totalVendido, 0, ',', '.') }}</h2>
                         <div class="kpi-period">
-                            <i class="fas fa-calendar me-1"></i>
+                            <i class="fas fa-calendar mr-1"></i>
                             {{ $from }} → {{ $to }}
                         </div>
                     </div>
@@ -78,7 +82,7 @@
                         <span class="kpi-label">RECIBOS DE CAJA</span>
                         <h2 class="kpi-value">{{ number_format($transacciones, 0, ',', '.') }}</h2>
                         <div class="kpi-period">
-                            <i class="fas fa-check-circle me-1"></i>
+                            <i class="fas fa-check-circle mr-1"></i>
                             Pagos aprobados
                         </div>
                     </div>
@@ -95,7 +99,7 @@
                         <span class="kpi-label">TICKET PROMEDIO</span>
                         <h2 class="kpi-value">${{ number_format($ticketPromedio, 0, ',', '.') }}</h2>
                         <div class="kpi-period">
-                            <i class="fas fa-calculator me-1"></i>
+                            <i class="fas fa-calculator mr-1"></i>
                             Total / Transacciones
                         </div>
                     </div>
@@ -105,24 +109,24 @@
         </div>
 
         {{-- Tarjetas Activas vs Vendidas --}}
-        <div class="row g-4 mb-4">
+        <div class="row mb-4">
             <div class="col-12 col-lg-6">
                 <div class="modern-card h-100">
                     <div class="card-header-modern">
                         <div class="d-flex align-items-center">
                             <div class="status-indicator active"></div>
-                            <h5 class="mb-0 fw-bold">Tarjetas Activas</h5>
+                            <h5 class="mb-0 font-weight-bold">Tarjetas Activas</h5>
                         </div>
                         <span class="badge-modern success">En circulación</span>
                     </div>
                     <div class="card-body">
-                        <div class="table-modern">
+                        <div class="table-modern table-responsive">
                             <table class="table">
                                 <thead>
                                     <tr>
                                         <th>Denominación</th>
-                                        <th class="text-end">Cantidad</th>
-                                        <th class="text-end">Total</th>
+                                        <th class="text-right">Cantidad</th>
+                                        <th class="text-right">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -133,10 +137,10 @@
                                                     ${{ number_format($r->valor, 0, ',', '.') }}
                                                 </span>
                                             </td>
-                                            <td class="text-end">
+                                            <td class="text-right">
                                                 <span class="count">{{ number_format($r->cantidad_tarjetas, 0, ',', '.') }}</span>
                                             </td>
-                                            <td class="text-end">
+                                            <td class="text-right">
                                                 <span class="amount positive">${{ number_format($r->total_valor, 0, ',', '.') }}</span>
                                             </td>
                                         </tr>
@@ -152,8 +156,8 @@
                                 <tfoot class="table-footer-modern">
                                     <tr>
                                         <th>Total</th>
-                                        <th class="text-end">{{ number_format($totActCant ?? 0, 0, ',', '.') }}</th>
-                                        <th class="text-end">${{ number_format($totActVal ?? 0, 0, ',', '.') }}</th>
+                                        <th class="text-right">{{ number_format($totActCant ?? 0, 0, ',', '.') }}</th>
+                                        <th class="text-right">${{ number_format($totActVal ?? 0, 0, ',', '.') }}</th>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -167,18 +171,18 @@
                     <div class="card-header-modern">
                         <div class="d-flex align-items-center">
                             <div class="status-indicator sold"></div>
-                            <h5 class="mb-0 fw-bold">Bonos Regalos Vendidos</h5>
+                            <h5 class="mb-0 font-weight-bold">Bonos Regalos Vendidos</h5>
                         </div>
                         <span class="badge-modern primary">Compradas</span>
                     </div>
                     <div class="card-body">
-                        <div class="table-modern">
+                        <div class="table-modern table-responsive">
                             <table class="table">
                                 <thead>
                                     <tr>
                                         <th>Denominación</th>
-                                        <th class="text-end">Cantidad</th>
-                                        <th class="text-end">Total</th>
+                                        <th class="text-right">Cantidad</th>
+                                        <th class="text-right">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -189,10 +193,10 @@
                                                     ${{ number_format($r->valor, 0, ',', '.') }}
                                                 </span>
                                             </td>
-                                            <td class="text-end">
+                                            <td class="text-right">
                                                 <span class="count">{{ number_format($r->cantidad_tarjetas, 0, ',', '.') }}</span>
                                             </td>
-                                            <td class="text-end">
+                                            <td class="text-right">
                                                 <span class="amount primary">${{ number_format($r->total_valor, 0, ',', '.') }}</span>
                                             </td>
                                         </tr>
@@ -208,8 +212,8 @@
                                 <tfoot class="table-footer-modern">
                                     <tr>
                                         <th>Total</th>
-                                        <th class="text-end">{{ number_format($totInaCant ?? 0, 0, ',', '.') }}</th>
-                                        <th class="text-end">${{ number_format($totInaVal ?? 0, 0, ',', '.') }}</th>
+                                        <th class="text-right">{{ number_format($totInaCant ?? 0, 0, ',', '.') }}</th>
+                                        <th class="text-right">${{ number_format($totInaVal ?? 0, 0, ',', '.') }}</th>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -220,11 +224,11 @@
         </div>
 
         {{-- Gráficos --}}
-        <div class="row g-4 mb-4">
+        <div class="row mb-4">
             <div class="col-12 col-lg-8">
                 <div class="modern-card">
                     <div class="card-header-modern">
-                        <h5 class="mb-0 fw-bold">Ventas por Hora</h5>
+                        <h5 class="mb-0 font-weight-bold">Ventas por Hora</h5>
                         @if (isset($horaPico))
                             <span class="badge-modern warning">Hora pico: {{ $horaPico }}:00</span>
                         @endif
@@ -237,7 +241,7 @@
             <div class="col-12 col-lg-4">
                 <div class="modern-card">
                     <div class="card-header-modern">
-                        <h5 class="mb-0 fw-bold">Ventas por Día</h5>
+                        <h5 class="mb-0 font-weight-bold">Ventas por Día</h5>
                         @if (isset($diaPico))
                             <span class="badge-modern warning">Día pico: {{ $diaPico }}</span>
                         @endif
@@ -250,11 +254,11 @@
         </div>
 
         {{-- Línea y Dona --}}
-        <div class="row g-4 mb-4">
+        <div class="row mb-4">
             <div class="col-12 col-lg-8">
                 <div class="modern-card">
                     <div class="card-header-modern">
-                        <h5 class="mb-0 fw-bold">Tendencia Diaria</h5>
+                        <h5 class="mb-0 font-weight-bold">Tendencia Diaria</h5>
                     </div>
                     <div class="card-body">
                         <div class="chart-box"><canvas id="chartLinea"></canvas></div>
@@ -264,7 +268,7 @@
             <div class="col-12 col-lg-4">
                 <div class="modern-card">
                     <div class="card-header-modern">
-                        <h5 class="mb-0 fw-bold">Métodos de Pago</h5>
+                        <h5 class="mb-0 font-weight-bold">Métodos de Pago</h5>
                     </div>
                     <div class="card-body">
                         <div class="chart-box-sm"><canvas id="chartDonut"></canvas></div>
@@ -274,28 +278,28 @@
         </div>
 
         {{-- Tablas Finales --}}
-        <div class="row g-4">
+        <div class="row">
             <div class="col-12 col-lg-6">
                 <div class="modern-card">
                     <div class="card-header-modern">
-                        <h5 class="mb-0 fw-bold">Detalle por Método</h5>
+                        <h5 class="mb-0 font-weight-bold">Detalle por Método</h5>
                     </div>
                     <div class="card-body">
-                        <div class="table-modern">
+                        <div class="table-modern table-responsive">
                             <table class="table">
                                 <thead>
                                     <tr>
                                         <th>Método</th>
-                                        <th class="text-end">Total</th>
-                                        <th class="text-end"># Transacciones</th>
+                                        <th class="text-right">Total</th>
+                                        <th class="text-right"># Transacciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @forelse ($porMetodo as $row)
                                         <tr>
                                             <td>{{ $row->metodo }}</td>
-                                            <td class="text-end fw-bold">${{ number_format($row->total, 0, ',', '.') }}</td>
-                                            <td class="text-end">{{ number_format($row->n, 0, ',', '.') }}</td>
+                                            <td class="text-right font-weight-bold">${{ number_format($row->total, 0, ',', '.') }}</td>
+                                            <td class="text-right">{{ number_format($row->n, 0, ',', '.') }}</td>
                                         </tr>
                                     @empty
                                         <tr>
@@ -312,17 +316,17 @@
             <div class="col-12 col-lg-6">
                 <div class="modern-card">
                     <div class="card-header-modern">
-                        <h5 class="mb-0 fw-bold">Últimos Pagos</h5>
+                        <h5 class="mb-0 font-weight-bold">Últimos Pagos</h5>
                     </div>
                     <div class="card-body">
-                        <div class="table-modern">
+                        <div class="table-modern table-responsive">
                             <table class="table">
                                 <thead>
                                     <tr>
                                         <th>Fecha</th>
                                         <th>Método</th>
                                         <th>Factura</th>
-                                        <th class="text-end">Valor</th>
+                                        <th class="text-right">Valor</th>
                                         <th>Estado</th>
                                     </tr>
                                 </thead>
@@ -338,7 +342,7 @@
                                                     N/D
                                                 @endif
                                             </td>
-                                            <td class="text-end fw-bold">${{ number_format($p->amount, 0, ',', '.') }}</td>
+                                            <td class="text-right font-weight-bold">${{ number_format($p->amount, 0, ',', '.') }}</td>
                                             <td>
                                                 <span class="status-badge {{ in_array($p->status, ['approved', 'paid', 'success', 'completed']) ? 'success' : 'secondary' }}">
                                                     {{ ucfirst($p->status) }}
@@ -360,15 +364,16 @@
     </div>
 
     {{-- Estilos Mejorados --}}
+    @push('css')
     <style>
         :root {
             --primary-color: #005484;
-            --primary-light: #0066a6;
-            --primary-dark: #003d63;
-            --success-color: #28a745;
-            --warning-color: #ffc107;
-            --info-color: #17a2b8;
-            --secondary-color: #6c757d;
+            --primary-light: #005484;
+            --primary-dark: #003f63;
+            --success-color: #15803D;
+            --warning-color: #FFC107;
+            --info-color: #0E7490;
+            --secondary-color: #4B5563;
             --border-radius: 12px;
             --box-shadow: 0 4px 20px rgba(0, 84, 132, 0.15);
             --box-shadow-hover: 0 8px 30px rgba(0, 84, 132, 0.25);
@@ -376,7 +381,7 @@
         }
 
         .dashboard-header {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+            background: linear-gradient(135deg, #003F63 0%, #005484 55%, #0A6AA0 100%);
             padding: 2rem;
             border-radius: var(--border-radius);
             position: relative;
@@ -389,8 +394,8 @@
             position: absolute;
             top: -50%;
             right: -10%;
-            width: 300px;
-            height: 300px;
+            width: 60%;
+            aspect-ratio: 1;
             background: rgba(255,255,255,0.1);
             border-radius: 50%;
         }
@@ -414,7 +419,7 @@
         }
 
         .card-header-modern {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+            background: var(--primary-color);
             color: white;
             padding: 1.5rem;
             display: flex;
@@ -510,7 +515,7 @@
 
         .kpi-card.primary .kpi-icon { background: var(--primary-color); }
         .kpi-card.success .kpi-icon { background: var(--success-color); }
-        .kpi-card.warning .kpi-icon { background: var(--warning-color); }
+        .kpi-card.warning .kpi-icon { background: var(--warning-color); color: #1F2937; }
 
         .kpi-content {
             flex: 1;
@@ -635,9 +640,9 @@
         }
 
         .badge-modern.success {
-            background: rgba(40, 167, 69, 0.1);
+            background: rgba(21, 128, 61, 0.1);
             color: var(--success-color);
-            border: 1px solid rgba(40, 167, 69, 0.2);
+            border: 1px solid rgba(21, 128, 61, 0.2);
         }
 
         .badge-modern.primary {
@@ -648,7 +653,7 @@
 
         .badge-modern.warning {
             background: rgba(255, 193, 7, 0.1);
-            color: #b58a00;
+            color: #B45309;
             border: 1px solid rgba(255, 193, 7, 0.2);
         }
 
@@ -660,7 +665,7 @@
         }
 
         .status-badge.success {
-            background: rgba(40, 167, 69, 0.1);
+            background: rgba(21, 128, 61, 0.1);
             color: var(--success-color);
         }
 
@@ -746,8 +751,10 @@
             }
         }
     </style>
+    @endpush
 @endsection
 
+@push('js')
 {{-- Scripts (mantenemos tus scripts existentes) --}}
 <script>
     (function() {
@@ -837,11 +844,11 @@
                             data: dataDonut,
                             backgroundColor: [
                                 '#005484',
-                                '#28a745',
-                                '#ffc107',
-                                '#dc3545',
-                                '#6c757d',
-                                '#17a2b8'
+                                '#15803D',
+                                '#FFC107',
+                                '#B91C1C',
+                                '#4B5563',
+                                '#0E7490'
                             ]
                         }]
                     },
@@ -947,3 +954,4 @@
         });
     })();
 </script>
+@endpush

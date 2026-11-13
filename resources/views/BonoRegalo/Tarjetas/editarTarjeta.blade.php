@@ -1,5 +1,13 @@
 @extends("theme.$theme.layout")
 
+@push('css')
+    @include('BonoRegalo.partials._estilos')
+@endpush
+@push('css')
+    <link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2/css/select2.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+@endpush
+
 @section('content')
 <div class="container-fluid">
     <div class="row justify-content-center">
@@ -83,7 +91,8 @@
 </div>
 @endsection
 
-@push('scripts')
+@push('js')
+    <script src="{{ asset('assets/lte/plugins/select2/js/select2.full.min.js') }}"></script>
 <script>
     $(document).ready(function() {
         $('.select2').select2({

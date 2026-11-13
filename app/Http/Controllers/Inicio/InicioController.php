@@ -36,25 +36,8 @@ class InicioController extends Controller
     {
         if (Auth::check())
         {
-            if (auth()->user()->id_tipoempleado==1)
-            {
-                $solicitudPedidos=solicitudPedidos::where('IdSolicita',auth()->user()->id)->where('Estado','=','1')->get();
-                $Aprobadas=solicitudPedidos::where('IdSolicita',auth()->user()->id)->where('Estado','=','2')->get();
-                $pendientes=solicitudPedidos::where('Estado','=','1')->get();
-                $TotalAprobadas=solicitudPedidos::where('Estado','=','2')->get();
-                $Inventario=DB::table('Inventario')->whereRaw('Inventario.CantidadMin > Inventario.Cantidades')->get();
-
-                return view('Inicio.inicioInventario',compact('solicitudPedidos','Aprobadas','pendientes','TotalAprobadas','Inventario'));
-            }
-            else
-            {
-                $solicitudPedidos=solicitudPedidos::where('IdSolicita',auth()->user()->id)->where('Estado','=','1')->get();
-                $Aprobadas=solicitudPedidos::where('IdSolicita',auth()->user()->id)->where('Estado','=','2')->get();
-                $Inventario=DB::table('Inventario')->whereRaw('Inventario.CantidadMin > Inventario.Cantidades')->get();
-
-
-                return view('Inicio.inicioInventario',compact('solicitudPedidos','Aprobadas'));
-            }
+            // Un solo punto de verdad para el inicio de Inventario (por permiso, no por tipo de empleado)
+            return app(\App\Http\Controllers\Inventario\Inicio\HomeInventarioController::class)->Inicio();
         }
         else
         {

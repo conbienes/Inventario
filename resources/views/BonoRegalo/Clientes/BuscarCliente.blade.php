@@ -1,5 +1,9 @@
 @extends("theme.$theme.layout")
 
+@push('css')
+    @include('BonoRegalo.partials._estilos')
+@endpush
+
 @section('content')
     <div class="container-fluid">
         <div class="row justify-content-center">
@@ -22,7 +26,7 @@
                         if (is_array($success)) {
                             $successHtml = '<ul style="text-align:left;margin:0;padding-left:1.2em;">';
                             foreach ($success as $k => $v) {
-                                $item = is_string($k) ? "<strong>{$k}:</strong> {$v}" : e($v);
+                                $item = is_string($k) ? "<strong>" . e($k) . ":</strong> " . e($v) : e($v);
                                 $successHtml .= "<li>{$item}</li>";
                             }
                             $successHtml .= '</ul>';
@@ -37,9 +41,9 @@
                         <script>
                             document.addEventListener('DOMContentLoaded', function() {
                                 Swal.fire({
-                                    title: `<span style="font-size:1.1em; font-weight:600; color:#28a745;">Éxito</span>`,
+                                    title: `<span style="font-size:1.1em; font-weight:600; color:#15803D;">Éxito</span>`,
                                     icon: 'success',
-                                    html: {!! json_encode($successHtml) !!},
+                                    html: {!! json_encode($successHtml, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!},
                                     confirmButtonText: 'Entendido',
                                     focusConfirm: true
                                 });
@@ -51,9 +55,9 @@
                         <script>
                             document.addEventListener('DOMContentLoaded', function() {
                                 Swal.fire({
-                                    title: `<span style="font-size:1.1em; font-weight:600; color:#d9534f;">Error</span>`,
+                                    title: `<span style="font-size:1.1em; font-weight:600; color:#B91C1C;">Error</span>`,
                                     icon: 'error',
-                                    html: {!! json_encode(is_array($error) ? implode('<br>', $error) : $error) !!},
+                                    html: {!! json_encode(is_array($error) ? e(implode('<br>', $error)) : e($error), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!},
                                     confirmButtonText: 'Cerrar',
                                     focusConfirm: true
                                 });
@@ -144,7 +148,7 @@
                                                 <i class="fas fa-user-slash fa-2x mb-2 text-muted"></i>
                                                 <h5 class="text-muted">No se encontraron clientes</h5>
                                                 @if (request()->has('search'))
-                                                    <a href="{{ route('BonoRegalo.Index.Cliente') }}"
+                                                    <a href="{{ route('BonoRegalo.IndexCliente') }}"
                                                         class="btn btn-sm btn-warning mt-2">
                                                         <i class="fas fa-undo mr-1"></i> Ver todos
                                                     </a>
@@ -173,7 +177,7 @@
     </div>
 @endsection
 
-@push('styles')
+@push('css')
     <style>
         /* Estilos responsivos */
         @media (max-width: 768px) {
@@ -219,29 +223,16 @@
 @endpush
 
 
-<script>
-    $(document).ready(function() {
-        // Inicializar tooltips
-        $('[data-toggle="tooltip"]').tooltip({
-            trigger: 'hover'
+
+@push('js')
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        $(document).ready(function() {
+            // Tooltips de Bootstrap 4
+            $('[data-toggle="tooltip"]').tooltip({ trigger: 'hover' });
+
+            // Auto-focus en el campo de búsqueda
+            $('input[name="search"]').focus();
         });
-
-        // Opcional: DataTables para funcionalidad avanzada
-        if ($('#tablaClientes').length && {{ count($clientes) }} > 10) {
-            $('#tablaClientes').DataTable({
-                responsive: true,
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json'
-                },
-                dom: '<"top"f>rt<"bottom"lip><"clear">',
-                pageLength: 25,
-                // Deshabilitar búsqueda si ya tenemos nuestro propio campo
-                searching: false
-            });
-        }
-
-        // Auto-focus en el campo de búsqueda
-        $('input[name="search"]').focus();
-    });
-</script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    </script>
+@endpush

@@ -1,0 +1,12 @@
+{
+  "puente-inbox-check": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "node c:/xampp/htdocs/Inventario/.puente/check-hook.cjs",
+        "timeout": 5
+      }
+    ]
+  }
+}
+

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "puente": {
+      "command": "node",
+      "args": [".puente/server.cjs"]
+    }
+  }
+}

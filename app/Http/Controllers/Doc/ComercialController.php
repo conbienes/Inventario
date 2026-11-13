@@ -74,7 +74,7 @@ class ComercialController extends Controller
             // Si no hay correo en sesión, redirigir con un mensaje de error
             if (!$email) {
                 return redirect()
-                    ->route('files.index', ['idInmueble' => 0]) // O ajusta la ruta según corresponda
+                    ->route('Siim.Comercial', ['idInmueble' => 0])
                     ->with('error', 'Debe ingresar desde un enlace válido para continuar.');
             }
 
@@ -542,12 +542,8 @@ class ComercialController extends Controller
 
             return json_decode($response->getBody(), true);
         } catch (\Exception $e) {
-            dd([
-                'error' => $e->getMessage(),
-                'linea' => $e->getLine(),
-                'archivo' => $e->getFile(),
-                'codigo' => $e->getCode(),
-            ]);
+            \Illuminate\Support\Facades\Log::error('SharePoint (Comercial): ' . $e->getMessage(), ['linea' => $e->getLine(), 'archivo' => $e->getFile()]);
+            throw $e;
         }
     }
 
@@ -579,12 +575,8 @@ class ComercialController extends Controller
 
             return json_decode($response->getBody(), true);
         } catch (\Exception $e) {
-            dd([
-                'error' => $e->getMessage(),
-                'linea' => $e->getLine(),
-                'archivo' => $e->getFile(),
-                'codigo' => $e->getCode(),
-            ]);
+            \Illuminate\Support\Facades\Log::error('SharePoint (Comercial): ' . $e->getMessage(), ['linea' => $e->getLine(), 'archivo' => $e->getFile()]);
+            throw $e;
         }
     }
 

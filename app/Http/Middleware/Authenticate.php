@@ -18,6 +18,7 @@ class Authenticate extends Middleware
         if (! $request->expectsJson()) {
             return route('login');
         }
-        return $next($request);
+        // Peticiones JSON sin sesión: null hace que Laravel responda 401 (antes fallaba con $next indefinido)
+        return null;
     }
 }

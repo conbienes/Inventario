@@ -8,8 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 class Movimientos extends Model
 {
     protected $table= 'movimientos';
-    protected $fillable=['Ingreso,Salida,Descripcion,IdTipoMovimiento,IdEmpleado,IdArea,IdSolicitante,IdInventario,
-                        IdProducto,created_at'];
+    protected $fillable = [
+        'Cantidad', 'Descripcion', 'IdTipoMovimiento', 'IdEmpleado', 'IdArea',
+        'IdSolicitante', 'IdInventario', 'IdProducto', 'created_at',
+    ];
     protected $guarded = ['Id'];
     
 }

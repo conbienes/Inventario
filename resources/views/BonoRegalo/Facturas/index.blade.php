@@ -1,5 +1,9 @@
 @extends("theme.$theme.layout")
 
+@push('css')
+    @include('BonoRegalo.partials._estilos')
+@endpush
+
 @php
     // Notificaciones "simples" unificadas (éxito, error, validación) para evitar
     // repetir el mismo bloque HTML de SweetAlert2 tres veces.
@@ -8,7 +12,7 @@
     if (session('success')) {
         $flashNotices[] = [
             'icon' => 'success',
-            'color' => '#28a745',
+            'color' => '#15803D',
             'title' => 'Éxito',
             'html' => '<p style="font-size:0.95em;color:#333;">' . e(session('success')) . '</p>',
             'confirmButtonText' => 'Entendido',
@@ -18,7 +22,7 @@
     if (session('error')) {
         $flashNotices[] = [
             'icon' => 'error',
-            'color' => '#d9534f',
+            'color' => '#B91C1C',
             'title' => 'Error',
             'html' => '<p style="font-size:0.95em;color:#333;">' . e(session('error')) . '</p>',
             'confirmButtonText' => 'Cerrar',
@@ -29,7 +33,7 @@
         $errorItems = collect($errors->all())->map(fn ($error) => '<li>' . e($error) . '</li>')->implode('');
         $flashNotices[] = [
             'icon' => 'error',
-            'color' => '#d9534f',
+            'color' => '#B91C1C',
             'title' => 'Errores de validación',
             'html' => '<ul style="text-align:left;font-size:0.9em;color:#333;max-height:200px;overflow-y:auto;padding-left:1.2rem;">' . $errorItems . '</ul>',
             'confirmButtonText' => 'Revisar',
@@ -239,7 +243,8 @@
 @endsection
 
 @push('css')
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="{{ asset('assets/lte/plugins/select2/css/select2.min.css') }}" rel="stylesheet" />
+    <link href="{{ asset('assets/lte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}" rel="stylesheet" />
 
     <style>
         /* Fondo de "mesa de trabajo" para que las tarjetas blancas resalten */
@@ -253,55 +258,29 @@
             border: 1px solid #e3e6f0;
         }
 
-        .select2-container .select2-selection--single {
-            position: relative !important;
-            height: calc(2.25rem + 2px) !important;
-            padding: 0.375rem 0.75rem !important;
-            line-height: 1.5 !important;
-            border: 1px solid #ced4da !important;
-            border-radius: 0.25rem !important;
-            background-color: #fff !important;
-            color: #495057 !important;
-            padding-right: 1.75rem !important;
+        /* Select2 con tema bootstrap4: texto oscuro sobre fondo claro (sin !important) */
+        .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+            color: #1F2937;
+            line-height: 2.25rem;
         }
-
-        .select2-container--default .select2-selection--single .select2-selection__rendered {
-            line-height: 1.5 !important;
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-            color: #495057 !important;
-            background-color: transparent !important;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .select2-container--bootstrap4 .select2-selection__placeholder {
+            color: #4B5563;
         }
-
-        .select2-selection__arrow {
-            display: none !important;
+        .select2-container--bootstrap4 .select2-results__option {
+            color: #1F2937;
         }
-
-        /* El botón "x" de limpiar selección se queda dentro de la caja, no se desborda */
-        .select2-container--default .select2-selection--single .select2-selection__clear {
-            position: absolute !important;
-            top: 50% !important;
-            right: 0.5rem !important;
-            margin: 0 !important;
-            transform: translateY(-50%);
+        .select2-container--bootstrap4 .select2-results__option--highlighted[aria-selected],
+        .select2-container--bootstrap4 .select2-results__option[aria-selected=true] {
+            background-color: #E0F2FE;
+            color: #1F2937;
         }
-
-        .select2-container--default .select2-results__option--highlighted[aria-selected] {
-            background-color: #f8f9fa !important;
-            color: #ffffff !important;
+        .select2-container--bootstrap4 .select2-results__option--highlighted[aria-selected] {
+            background-color: #BAE6FD;
         }
-
-        .select2-container--default .select2-results__option[aria-selected=true] {
-            background-color: #e9ecef !important;
-            color: #ffffff !important;
-        }
-
         .select2-dropdown {
-            border: 1px solid #ced4da !important;
-            border-radius: 0.25rem !important;
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
         }
 
         /* Ticket / carrito lateral */
@@ -319,7 +298,7 @@
 
         /* Panel resumen de pago tipo "ticket" */
         .summary-ticket {
-            background: linear-gradient(135deg, #f8f9fc, #eef1f8);
+            background: #F3F4F6;
             border: 1px solid #e3e6f0;
         }
 
@@ -395,8 +374,7 @@
 @endpush
 
 @push('js')
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+        <script src="{{ asset('assets/lte/plugins/select2/js/select2.full.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     @if (count($flashNotices))
@@ -426,7 +404,7 @@
                 const data = @json(session('warning'));
                 const tarjetasHtml = Array.isArray(data.tarjetas) && data.tarjetas.length ? `
                     <details style="margin-top:.5rem;">
-                        <summary style="cursor:pointer; font-weight:600; color:#d9534f;">
+                        <summary style="cursor:pointer; font-weight:600; color:#B91C1C;">
                             ${data.tarjetas.length} ${data.tarjetas.length > 1 ? 'tarjetas fallidas' : 'tarjeta fallida'}
                         </summary>
                         <ul style="margin-top:.5rem; max-height:200px; overflow-y:auto; padding-left:1.2rem;">
@@ -436,13 +414,13 @@
                 ` : `<p style="margin-top:.5rem;">No hubo tarjetas fallidas.</p>`;
 
                 Swal.fire({
-                    title: `<span style="font-size:1.1em; font-weight:600; color:#444;">${data.mensaje}</span>`,
+                    title: `<span style="font-size:1.1em; font-weight:600; color:#1F2937;">${data.mensaje}</span>`,
                     icon: 'warning',
                     width: 600,
                     html: `
                         <div style="text-align:left; font-size:0.95em; color:#333;">
                             <p><strong>Número de Recibo de Caja:</strong>
-                                <span style="color:#28a745;">${data.factura ?? ''}</span>
+                                <span style="color:#15803D;">${data.factura ?? ''}</span>
                             </p>
                             <p><strong>Total exitoso:</strong>
                                 <span style="color:#007bff;">$
@@ -460,13 +438,6 @@
     @endif
 
     <script>
-        // Activar Select2 para buscar en el select
-        $('#tarjetaSelect').select2({
-            theme: "classic", // o "bootstrap4" si quieres más integración
-            placeholder: "Buscar tarjeta por número",
-            allowClear: true,
-            width: 'resolve' // respeta el ancho del select
-        });
         // Mostrar el precio al seleccionar
         $('#tarjetaSelect').on('change', function() {
             let precio = $(this).find(':selected').data('precio') || 0;
@@ -494,7 +465,7 @@
             return moneyFmt.format(n || 0);
         }
         $('#tarjetaSelect').select2({
-            theme: "classic",
+            theme: "bootstrap4",
             placeholder: 'Seleccione una tarjeta',
             allowClear: true,
             language: {
@@ -544,7 +515,7 @@
 
 
         $('.cliente').select2({
-            theme: "classic",
+            theme: "bootstrap4",
             language: {
                 noResults: function() {
                     return `
@@ -867,16 +838,16 @@
                     html: `
                         <div style="text-align:center;">
                             <div style="width:72px;height:72px;margin:0 auto .75rem;border-radius:50%;background:#e8f7ee;display:flex;align-items:center;justify-content:center;">
-                                <i class="fas fa-hand-holding-usd" style="font-size:2rem;color:#28a745;"></i>
+                                <i class="fas fa-hand-holding-usd" style="font-size:2rem;color:#15803D;"></i>
                             </div>
-                            <div style="color:#6c757d;font-size:.95rem;">Entrega al cliente</div>
-                            <div id="swalCambio" style="font-size:2.8rem;font-weight:800;color:#28a745;line-height:1.15;margin:.2rem 0 .9rem;">${pesos(cambio)}</div>
+                            <div style="color:#4B5563;font-size:.95rem;">Entrega al cliente</div>
+                            <div id="swalCambio" style="font-size:2.8rem;font-weight:800;color:#15803D;line-height:1.15;margin:.2rem 0 .9rem;">${pesos(cambio)}</div>
                             <div style="max-width:320px;margin:0 auto;background:#f8f9fa;border-radius:12px;padding:.8rem 1rem;text-align:left;font-size:.95rem;color:#495057;">
                                 ${fila('Total de la venta', pesos(total))}
                                 ${fila('Recibido en efectivo', pesos(efectivo))}
                                 ${otros > 0 ? fila('Otros medios de pago', pesos(otros)) : ''}
                                 <hr style="margin:.4rem 0;">
-                                ${fila('<b>Cambio</b>', `<b>${pesos(cambio)}</b>`, 'color:#28a745;')}
+                                ${fila('<b>Cambio</b>', `<b>${pesos(cambio)}</b>`, 'color:#15803D;')}
                             </div>
                             ${alerta}
                             <div style="margin-top:1rem;color:#495057;">¿Deseas guardar la factura?</div>
@@ -884,8 +855,8 @@
                     showCancelButton: true,
                     confirmButtonText: '<i class="fas fa-check mr-1"></i> Sí, guardar',
                     cancelButtonText: '<i class="fas fa-edit mr-1"></i> No, seguir editando',
-                    confirmButtonColor: '#28a745',
-                    cancelButtonColor: '#6c757d',
+                    confirmButtonColor: '#15803D',
+                    cancelButtonColor: '#4B5563',
                     reverseButtons: true,
                     focusConfirm: true,
                     allowOutsideClick: false,
@@ -951,7 +922,7 @@
 
                     Swal.fire({
                         title: 'Guardando factura...',
-                        html: '<div style="font-size:0.95em; color:#666;">Por favor espera un momento</div>',
+                        html: '<div style="font-size:0.95em; color:#4B5563;">Por favor espera un momento</div>',
                         allowOutsideClick: false,
                         allowEscapeKey: false,
                         didOpen: () => {

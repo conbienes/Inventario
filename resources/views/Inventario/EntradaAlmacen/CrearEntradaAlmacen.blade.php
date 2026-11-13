@@ -1,25 +1,61 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
+
+@push('css')
+<link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2/css/select2.min.css') }}">
+<link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+@endpush
+
+@push('js')
+<script src="{{ asset('assets/lte/plugins/select2/js/select2.full.min.js') }}"></script>
+<script>
+    $('#Proveedor').select2({
+        theme: 'bootstrap4',
+        width: '100%',
+        placeholder: 'Busque por NIT o nombre',
+        language: {
+            noResults: function () { return 'Proveedor no encontrado'; },
+            searching: function () { return 'Buscando...'; }
+        },
+        ajax: {
+            url: "{{ url('/Ajax/Proveedor') }}",
+            dataType: 'json',
+            delay: 250,
+            processResults: function (data) {
+                return {
+                    results: $.map(data, function (item) {
+                        return {
+                            text: 'NIT: ' + item.Nit + ' | PROVEEDOR: ' + item.Nombre,
+                            id: item.Id
+                        };
+                    })
+                };
+            },
+            cache: true
+        }
+    });
+</script>
+@endpush
 
 @section('content')
-
-<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
-
-<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.0.0-alpha1/css/bootstrap.min.css">
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/js/select2.min.js"></script>
-
-  <!-- Modal -->
-
-  <div class="card card-primary">
-    <div class="card-header">
-      <h3 class="card-title">{{__('ENTRADA PEDIDO DE COMPRA')}}</h3>
+<div class="inv-cabecera">
+    <div>
+        <h1 class="inv-titulo">{{ __('Ingreso de pedido de compra') }}</h1>
+        <p class="inv-subtitulo">Registre los datos de la remisión. En el siguiente paso podrá añadir los productos.</p>
     </div>
-      <div class="modal-content"  >
+</div>
+
+@include('Inventario.partials.pasos', ['pasos' => ['Datos de la remisión', 'Productos recibidos'], 'actual' => 1])
+
+<div class="inv-tarjeta-wrap">
+    <form method="POST" action="{{ route('AñadirFactura') }}" class="inv-tarjeta p-3 p-md-4">
+        @csrf
+
         @if ($errors->any())
-            <div class="alert alert-danger">
-                <ul>
+            <div class="alert alert-danger" role="alert">
+                <strong><i class="fas fa-exclamation-triangle mr-1"></i> Revise los datos:</strong>
+                <ul class="mb-0 pl-3 mt-1">
                     @foreach ($errors->all() as $error)
                         <li>{{ $error }}</li>
                     @endforeach
@@ -27,114 +63,57 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('AñadirFactura') }}">
-            @csrf
-        <div class="card-body">
-            @csrf
-                <div class="form-group">
-                  @foreach ($Empleado as $item)
-                  <div class="form-group">
-                    <label for="Nombre">{{__('Almacenista')}}</label>
-                    <input type="text" readonly="readonly" class="form-control" name="Solicitante" autocomplete="off" autofocus value="{{$item->nombre}} {{$item->apellidos}}">
-                    </div>
-                  @endforeach
+        @foreach ($Division as $item)
+            <input type="hidden" name="Division" value="{{ $item->id }}">
+        @endforeach
 
-                  @foreach ($Division as $item)
-                    <input type="hidden"  class="form-control" name="Division" autocomplete="off" autofocus value="{{$item->id}}">
-                  @endforeach
-
-                  <label>Proveedor</label>
-                  <select class="Proveedor " required style="width: 100%" name="Proveedor" id="Proveedor" autocomplete="off" ></select> <br><br>
-
-              <div class="form-group">
-                <label for="Direccion">{{ __('# Remision') }}</label>
-                <input type="text" class="form-control" name="NFactura" autocomplete="off" autofocus required>
+        <div class="inv-seccion"><i class="fas fa-user"></i> Quién recibe</div>
+        <div class="row">
+            @foreach ($Empleado as $item)
+                <div class="col-md-6 mb-3">
+                    <label for="Solicitante">{{ __('Almacenista') }}</label>
+                    <input type="text" id="Solicitante" class="form-control" name="Solicitante" readonly
+                           value="{{ $item->nombre }} {{ $item->apellidos }}">
                 </div>
-              <div class="form-group">
-                <label for="Direccion">{{ __('Precio Total') }}</label>
-                <input type="number" class="form-control" name="PrecioT" autocomplete="off" autofocus required>
+            @endforeach
+        </div>
+
+        <div class="inv-seccion"><i class="fas fa-truck"></i> Remisión del proveedor</div>
+        <div class="row">
+            <div class="col-12 mb-3">
+                <label for="Proveedor">{{ __('Proveedor') }} <span class="inv-campo-obligatorio">*</span></label>
+                <select id="Proveedor" name="Proveedor" class="form-control" required></select>
+                <small class="form-text">Busque por NIT o por nombre del proveedor.</small>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="NFactura">{{ __('# Remisión') }} <span class="inv-campo-obligatorio">*</span></label>
+                <input type="text" id="NFactura" class="form-control" name="NFactura" autocomplete="off" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="OPedido">{{ __('# Orden de pedido') }} <span class="inv-campo-obligatorio">*</span></label>
+                <input type="text" id="OPedido" class="form-control" name="OPedido" autocomplete="off" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="PrecioT">{{ __('Precio total') }} <span class="inv-campo-obligatorio">*</span></label>
+                <div class="input-group">
+                    <div class="input-group-prepend"><span class="input-group-text">$</span></div>
+                    <input type="number" id="PrecioT" class="form-control" name="PrecioT" min="0" step="any" autocomplete="off" required>
                 </div>
-              <label for="text">{{ __('# Orden de Pedido') }}</label>
-                <input type="text" class="form-control" name="OPedido" autocomplete="off" autofocus required>
-                </div>
-                <div class="form-group">
-                  <label for="text">{{ __('Fecha de Ingreso') }}</label>
-                  <input type="date" class="form-control" name="FechaI" autocomplete="off" autofocus required>
-                  </div>
-          <table class="table" >
-            <tr ALIGN="center">
-             <td >
-               <div class="form-group" >
-               <button type="submit" class="btn btn-success">{{ __('Añadir Items') }}</button>
-               </div>
-            </td>
-                 <td>
-                   <div class="form-group ">
-                    @foreach ($Division as $item)
-                    <a class="btn btn-danger" href="{{route('Vista_EntAlmacen',['id'=>Crypt::encrypt($item->id)])}}" >{{ __('Cancelar') }} </a>
-                    @endforeach
-                   </div>
-                 </td>
-           </tr>
-         </table>
-        </form>
-      </div>
-    </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="FechaI">{{ __('Fecha de ingreso') }} <span class="inv-campo-obligatorio">*</span></label>
+                <input type="date" id="FechaI" class="form-control" name="FechaI" required>
+            </div>
+        </div>
 
+        <p class="inv-ayuda mb-0"><span class="inv-campo-obligatorio">*</span> Campos obligatorios.</p>
 
-
-
-<script type="text/javascript">
-    $('.Proveedor').select2({
-      theme: "classic",
-      language: {
-              noResults: function() {return "Proveedor no encontrado"; },
-              searching: function(){ return "Buscando......." }
-          },
-        ajax: {
-            url: '/Ajax/Proveedor',
-            dataType: 'json',
-            delay: 250,
-            processResults: function (data) {
-                return {
-                    results: $.map(data, function (item) {
-                        return {
-                            text: 'NIT: '+ item.Nit + ' | PROVEEDOR: ' + item.Nombre,
-                            id: item.Id
-                        }
-                    })
-                };
-            },
-            cache: true
-        }
-    });
-  </script>
-
+        <div class="d-flex flex-wrap justify-content-between align-items-center mt-4 pt-3" style="border-top:1px solid #E2E8F0">
+            @foreach ($Division as $item)
+                <a class="btn btn-outline-secondary" href="{{ route('Vista_EntAlmacen', ['id' => Crypt::encrypt($item->id)]) }}"><i class="fas fa-times mr-1"></i> {{ __('Cancelar') }}</a>
+            @endforeach
+            <button type="submit" class="btn btn-success btn-lg">{{ __('Continuar con los productos') }} <i class="fas fa-arrow-right ml-1"></i></button>
+        </div>
+    </form>
+</div>
 @endsection
-
-<style>
-  .select2-container--material {
-   width: 100% !important;
-  font-size: 80%  }
-   .select2-container--material .select2-selection--single {
-     background-color: transparent;
-     border: none;
-     border-bottom: 0.5px solid #ced4da;
-     border-radius: 0;
-     box-shadow: none;
-     box-sizing: content-box;
-     height: auto;
-     margin: 0;
-     outline: none;
-     transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
-     .select2-container--material .select2-selection--single .select2-selection__placeholder {
-       color: #999; }
-   .select2-container--material .select2-search--dropdown .select2-search__field {
-     border: none;
-     border-bottom: 0.5px solid #ced4da;
-     border-radius: 0;
-     outline: none; }
-   .select2-container--material .select2-results__option--highlighted[aria-selected] {
-     background-color: #3498DB ;
-     color: rgb(0, 0, 0); }
- </style>

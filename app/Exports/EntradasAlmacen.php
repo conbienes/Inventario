@@ -45,7 +45,7 @@ class EntradasAlmacen implements FromView
 
         } catch (Exception $e) {
             // Puedes registrar el error para consultarlo luego
-            dd('Error al generar el informe de Entradas Almacen: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Error al generar el informe de Entradas Almacen: ' . $e->getMessage());
 
             // También puedes lanzar una excepción personalizada o mostrar un mensaje
             abort(500, 'Error al generar el informe de Entradas Almacen.');

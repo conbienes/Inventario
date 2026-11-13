@@ -13,25 +13,36 @@ class ProductoController extends Controller
 {
     public function consultar(Request $request)
     {
-        $buscar = strtoupper(trim($request->get('texto', '')));
+        $buscar = strtoupper(trim((string) $request->get('texto', '')));
 
-        // Consulta base
-        $query = DB::table('Producto')->join('unidad_medida', 'unidad_medida.Id', '=', 'Producto.IdUnidadMedida')->select('Producto.Id', 'Producto.Nombre', 'Producto.Codigo as Codigo', 'unidad_medida.Nombre as Medida', 'Producto.Estado');
+        $query = DB::table('Producto')
+            ->join('unidad_medida', 'unidad_medida.Id', '=', 'Producto.IdUnidadMedida')
+            ->select('Producto.Id', 'Producto.Nombre', 'Producto.Codigo as Codigo', 'unidad_medida.Nombre as Medida', 'Producto.Estado');
 
-        // Agregar búsqueda dinámica si existe término de búsqueda
-        if (!empty($buscar)) {
-            $query->where(function ($subquery) use ($buscar) {
-                $subquery->where('Producto.Nombre', 'like', "%$buscar%")->orWhere('Producto.Codigo', 'like', "%$buscar%");
+        if ($buscar !== '') {
+            $query->where(function ($w) use ($buscar) {
+                $w->where('Producto.Nombre', 'like', "%$buscar%")->orWhere('Producto.Codigo', 'like', "%$buscar%");
             });
         }
-        // Paginación final
-        $Producto = $query->paginate(20)->appends(['texto' => $buscar]);
+        if ($unidad = (int) $request->get('unidad')) {
+            $query->where('Producto.IdUnidadMedida', $unidad);
+        }
+        if (in_array((string) $request->get('estado'), ['1', '2'], true)) {
+            $query->where('Producto.Estado', (int) $request->get('estado'));
+        }
 
-        // Retornar la vista
-        return view('Inventario.Producto.ConsultarProducto', compact('Producto'));
+        match ((string) $request->get('orden', 'nombre')) {
+            'nombre_desc' => $query->orderByDesc('Producto.Nombre'),
+            'codigo' => $query->orderByRaw('CAST(Producto.Codigo AS UNSIGNED)')->orderBy('Producto.Codigo'),
+            'recientes' => $query->orderByDesc('Producto.created_at')->orderByDesc('Producto.Id'),
+            default => $query->orderBy('Producto.Nombre'),
+        };
+
+        $Producto = $query->paginate(20)->withQueryString();
+        $unidades = DB::table('unidad_medida')->orderBy('Nombre')->pluck('Nombre', 'Id')->all();
+
+        return view('Inventario.Producto.ConsultarProducto', compact('Producto', 'unidades'));
     }
-
-
 
     public function editar($id)
     {
@@ -55,9 +66,7 @@ class ProductoController extends Controller
             ->where('id', $request['Id'])
             ->update(['Nombre' => strtoupper(trim($request['Nombre'])), 'IdUnidadMedida' => $request['UnidadMedida'], 'Codigo' => trim($request['Codigo']), 'Estado' => $request['Estado']]);
 
-        $Producto = DB::table('Producto')->join('unidad_medida', 'unidad_medida.Id', '=', 'Producto.IdUnidadMedida')->select('Producto.Id', 'Producto.Nombre', 'Producto.Codigo as Codigo', 'unidad_medida.Nombre as Medida', 'Producto.Estado')->paginate(6);
-
-        return view('Inventario.Producto.ConsultarProducto', compact('Producto'));
+        return redirect()->route('Producto')->with('success', 'Producto actualizado correctamente.');
     }
 
 
@@ -73,6 +82,9 @@ class ProductoController extends Controller
 
     public function Guardar(Request $request)
     {
+        // Se normaliza antes de validar para que la comprobación de duplicados compare igual que se guarda (mayúsculas).
+        $request->merge(['Nombre' => strtoupper(trim((string) $request->input('Nombre')))]);
+
         $validated = $request->validate([
             'Nombre' => 'required|min:1|max:100|unique:Producto',
             'Estado' => 'required',
@@ -87,8 +99,6 @@ class ProductoController extends Controller
         $save->IdEmpleado = auth()->user()->id;
         $save->save();
 
-        $Producto = DB::table('Producto')->join('unidad_medida', 'unidad_medida.Id', '=', 'Producto.IdUnidadMedida')->select('Producto.Id', 'Producto.Nombre', 'Producto.Codigo as Codigo', 'unidad_medida.Nombre as Medida', 'Producto.Estado')->paginate(6);
-
-        return view('Inventario.Producto.ConsultarProducto', compact('Producto'));
+        return redirect()->route('Producto')->with('success', 'Producto registrado correctamente.');
     }
 }

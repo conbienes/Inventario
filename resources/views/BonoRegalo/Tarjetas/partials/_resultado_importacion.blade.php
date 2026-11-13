@@ -4,19 +4,19 @@
 --}}
 @php
     $cfg = [
-        'ok' => ['color' => '#28a745', 'fondo' => '#eaf7ee', 'icono' => 'fa-check-circle',
+        'ok' => ['color' => '#15803D', 'fondo' => '#eaf7ee', 'icono' => 'fa-check-circle',
             'titulo' => '¡Importación completada!',
             'texto' => "Se cargaron {$imp['importadas']} " . ($imp['importadas'] === 1 ? 'tarjeta' : 'tarjetas') . ' sin ningún problema.'],
-        'parcial' => ['color' => '#e0a800', 'fondo' => '#fff8e1', 'icono' => 'fa-exclamation-circle',
+        'parcial' => ['color' => '#B45309', 'fondo' => '#fff8e1', 'icono' => 'fa-exclamation-circle',
             'titulo' => 'Importación completada con observaciones',
             'texto' => "Se cargaron {$imp['importadas']} de {$imp['filas']} tarjetas. Las {$imp['con_error']} filas de abajo no se cargaron: corrígelas y vuelve a subir solo esas."],
-        'error' => ['color' => '#dc3545', 'fondo' => '#fdecee', 'icono' => 'fa-times-circle',
+        'error' => ['color' => '#B91C1C', 'fondo' => '#fdecee', 'icono' => 'fa-times-circle',
             'titulo' => 'No se cargó ninguna tarjeta',
             'texto' => "Ninguna de las {$imp['filas']} filas se pudo cargar. Revisa los problemas, corrige el archivo y vuelve a subirlo."],
-        'formato' => ['color' => '#dc3545', 'fondo' => '#fdecee', 'icono' => 'fa-file-excel',
+        'formato' => ['color' => '#B91C1C', 'fondo' => '#fdecee', 'icono' => 'fa-file-excel',
             'titulo' => 'El archivo no tiene el formato esperado',
             'texto' => 'No encontramos todas las columnas necesarias en la primera fila del archivo.'],
-        'vacio' => ['color' => '#17a2b8', 'fondo' => '#e8f6f8', 'icono' => 'fa-inbox',
+        'vacio' => ['color' => '#0E7490', 'fondo' => '#e8f6f8', 'icono' => 'fa-inbox',
             'titulo' => 'El archivo no tiene datos',
             'texto' => 'Solo encontramos encabezados o filas vacías. Agrega las tarjetas debajo de los encabezados.'],
     ][$imp['estado']] ?? null;
@@ -57,13 +57,13 @@
                     </div>
                     <div class="col-4">
                         <div class="imp-cifra">
-                            <div class="imp-numero" style="color:#28a745;">{{ number_format($imp['importadas'], 0, ',', '.') }}</div>
+                            <div class="imp-numero" style="color:#15803D;">{{ number_format($imp['importadas'], 0, ',', '.') }}</div>
                             <div class="imp-etiqueta">Cargadas</div>
                         </div>
                     </div>
                     <div class="col-4">
                         <div class="imp-cifra">
-                            <div class="imp-numero" style="color: {{ $imp['con_error'] ? '#dc3545' : '#adb5bd' }};">{{ number_format($imp['con_error'], 0, ',', '.') }}</div>
+                            <div class="imp-numero" style="color: {{ $imp['con_error'] ? '#B91C1C' : '#6B7280' }};">{{ number_format($imp['con_error'], 0, ',', '.') }}</div>
                             <div class="imp-etiqueta">Con problemas</div>
                         </div>
                     </div>
@@ -112,8 +112,8 @@
                         <table class="table table-sm mb-0">
                             <thead>
                                 <tr>
-                                    <th style="width: 70px;">Fila</th>
-                                    <th style="width: 190px;">Tarjeta</th>
+                                    <th style="width: 15%;">Fila</th>
+                                    <th style="width: 35%;">Tarjeta</th>
                                     <th>Problema</th>
                                 </tr>
                             </thead>
@@ -139,8 +139,8 @@
                                     <tbody>
                                         @foreach ($errores->slice($visibles) as $e)
                                             <tr>
-                                                <td style="width: 70px;"><span class="badge badge-light border">{{ $e['fila'] }}</span></td>
-                                                <td style="width: 190px;" class="text-monospace small">{{ $e['tarjeta'] ?? '—' }}</td>
+                                                <td style="width: 15%;"><span class="badge badge-light border">{{ $e['fila'] }}</span></td>
+                                                <td style="width: 35%;" class="text-monospace small">{{ $e['tarjeta'] ?? '—' }}</td>
                                                 <td>{{ $e['mensaje'] }}</td>
                                             </tr>
                                         @endforeach
@@ -178,15 +178,15 @@
     @push('css')
         <style>
             .imp-icono { width: 52px; height: 52px; min-width: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
-            .imp-cifra { background: #f8f9fa; border-radius: 12px; padding: .9rem .5rem; }
+            .imp-cifra { background: #F3F4F6; border-radius: 12px; padding: .9rem .5rem; }
             .imp-numero { font-size: 1.9rem; font-weight: 800; line-height: 1.1; }
-            .imp-etiqueta { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: #6c757d; margin-top: .2rem; }
+            .imp-etiqueta { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: #4B5563; margin-top: .2rem; }
             .imp-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: .3rem .8rem; margin: 0 .4rem .4rem 0; font-size: .85rem; }
-            .imp-chip-ok { background: #eaf7ee; color: #1e7e34; }
-            .imp-chip-falta { background: #fdecee; color: #c82333; font-weight: 600; }
-            .imp-chip-gris { background: #f1f3f5; color: #495057; }
+            .imp-chip-ok { background: #eaf7ee; color: #15803D; }
+            .imp-chip-falta { background: #fdecee; color: #B91C1C; font-weight: 600; }
+            .imp-chip-gris { background: #F3F4F6; color: #1F2937; }
             .imp-tabla { border: 1px solid #eef0f2; border-radius: 10px; }
-            .imp-tabla thead th { background: #f8f9fa; border-top: 0; font-size: .78rem; text-transform: uppercase; color: #6c757d; }
+            .imp-tabla thead th { background: #F3F4F6; border-top: 0; font-size: .78rem; text-transform: uppercase; color: #4B5563; }
             .imp-tabla td { vertical-align: middle; }
         </style>
     @endpush

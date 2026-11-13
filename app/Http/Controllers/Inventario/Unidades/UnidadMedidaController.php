@@ -10,13 +10,29 @@ use App\Http\Controllers\Controller;
 class UnidadMedidaController extends Controller
 {
     public function consultar(Request $request)
-    {              
-        $buscar=strtoupper(trim($request->get('texto')));        
-        $UnidadesM = DB::table('unidad_medida')->where("Nombre",'like',$buscar."%")
-        ->orwhere("Abreviatura",'like',"%".$buscar."%")->paginate(6); 
-      
-        return view('Inventario.UnidadesMedidas.ConsultarMedidas',compact('UnidadesM'));
-    }   
+    {
+        $buscar = strtoupper(trim((string) $request->get('texto', '')));
+
+        $query = DB::table('unidad_medida');
+        if ($buscar !== '') {
+            $query->where(function ($w) use ($buscar) {
+                $w->where('Nombre', 'like', '%' . $buscar . '%')->orWhere('Abreviatura', 'like', '%' . $buscar . '%');
+            });
+        }
+        if (in_array((string) $request->get('estado'), ['1', '2'], true)) {
+            $query->where('Estado', (int) $request->get('estado'));
+        }
+
+        match ((string) $request->get('orden', 'nombre')) {
+            'nombre_desc' => $query->orderByDesc('Nombre'),
+            'recientes' => $query->orderByDesc('created_at')->orderByDesc('Id'),
+            default => $query->orderBy('Nombre'),
+        };
+
+        $UnidadesM = $query->paginate(20)->withQueryString();
+
+        return view('Inventario.UnidadesMedidas.ConsultarMedidas', compact('UnidadesM'));
+    }
 
     public function editar($id)
     { 
@@ -39,9 +55,7 @@ class UnidadMedidaController extends Controller
                 'Abreviatura'=> strtoupper(trim( $request['Abreviatura'])),
                 'Estado'=>$request['Estado']]);
 
-        $UnidadesM = DB::table('unidad_medida')->paginate(6); 
-      
-        return view('Inventario.UnidadesMedidas.ConsultarMedidas',compact('UnidadesM')); 
+        return redirect()->route('UnidMedida')->with('success', 'Unidad de medida actualizada correctamente.');
          
     }
 
@@ -51,7 +65,10 @@ class UnidadMedidaController extends Controller
     }
 
     public function Guardar(Request $request)
-    {              
+    {
+        // Se normaliza antes de validar para que la comprobación de duplicados compare igual que se guarda (mayúsculas).
+        $request->merge(['Nombre' => strtoupper(trim((string) $request->input('Nombre')))]);
+
         $validated = $request->validate([
             'Nombre' => 'required|unique:unidad_medida|min:2|max:255',
             'Abreviatura' => 'required|max:5',
@@ -64,11 +81,6 @@ class UnidadMedidaController extends Controller
         $save->IdEmpleado=auth()->user()->id;    
         $save->save();
         
-        $request->session()->flash('succes', 'Se registro unidad de registro');
-
-        $UnidadesM = DB::table('unidad_medida')->paginate(6); 
-              
-       
-        return view('Inventario.UnidadesMedidas.ConsultarMedidas',compact('UnidadesM'));   
+        return redirect()->route('UnidMedida')->with('success', 'Unidad de medida registrada correctamente.');
     }
 }

@@ -1,9 +1,10 @@
 <!doctype html>
-<html>
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <title>Resumen de Ventas</title>
 <style>
+  /* Papel térmico: ancho en mm (por defecto 76 mm), alto automático */
   @page { size: {{ $Wmm ?? 76 }}mm auto; margin: 2mm; }
 
   body{
@@ -12,20 +13,26 @@
     margin: 0;
     padding: 2mm 4mm 2mm 2mm; /* top right bottom left */
     color:#000;
+    background:#fff;
+    text-align:left;
   }
 
   .center{ text-align:center; }
   .right{ text-align:right; }
-  .small{ font-size:10px; }
-  .muted{ color:#444; }
+  .small{ font-size:11px; color:#000; }
+  .muted{ color:#000; }
 
   table{ width:100%; border-collapse:collapse; table-layout:fixed; }
   th, td{
     padding: 2px 0;
     vertical-align: top;
+    color:#000;
     overflow-wrap: anywhere;
-    white-space: nowrap;
+    word-break: break-word;
   }
+  td.right, th.right { white-space: nowrap; }
+  th { font-weight: bold; }
+  tr.total td { font-weight: bold; font-size: 13px; }
 
   .hr{ border-top:1px dashed #000; margin:6px 0; }
   .gap-1cm{ height:10mm; }
@@ -98,7 +105,7 @@
       <td class="right"><strong>Cant. tarjetas:</strong></td>
       <td class="right">{{ $tarjetasCount }}</td>
     </tr>
-    <tr>
+    <tr class="total">
       <td class="right"><strong>Total tarjetas:</strong></td>
       <td class="right">{{ number_format($tarjetasTotal, 0, ',', '.') }}</td>
     </tr>
@@ -139,7 +146,7 @@
       <col style="width:60%;">
       <col style="width:40%;">
     </colgroup>
-    <tr>
+    <tr class="total">
       <td class="right"><strong>Total recibido:</strong></td>
       <td class="right">{{ number_format($totalRecibido, 0, ',', '.') }}</td>
     </tr>

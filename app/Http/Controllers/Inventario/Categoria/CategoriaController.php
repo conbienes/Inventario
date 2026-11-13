@@ -12,12 +12,27 @@ class CategoriaController extends Controller
 {
     public function consultar(Request $request)
     {
-        $buscar=strtoupper(trim($request->get('texto')));
+        $buscar = strtoupper(trim((string) $request->get('texto', '')));
 
-        $Categoria = DB::table('categoria_inventario')
-        ->where("Nombre",'like',"%".$buscar."%")->paginate(10);
+        $query = DB::table('categoria_inventario');
+        if ($buscar !== '') {
+            $query->where(function ($w) use ($buscar) {
+                $w->where('Nombre', 'like', '%' . $buscar . '%');
+            });
+        }
+        if (in_array((string) $request->get('estado'), ['1', '2'], true)) {
+            $query->where('Estado', (int) $request->get('estado'));
+        }
 
-        return view('Inventario.Categoria.ConsultarCategoria',compact('Categoria'));
+        match ((string) $request->get('orden', 'nombre')) {
+            'nombre_desc' => $query->orderByDesc('Nombre'),
+            'recientes' => $query->orderByDesc('created_at')->orderByDesc('Id'),
+            default => $query->orderBy('Nombre'),
+        };
+
+        $Categoria = $query->paginate(20)->withQueryString();
+
+        return view('Inventario.Categoria.ConsultarCategoria', compact('Categoria'));
     }
 
     public function editar($id)
@@ -39,9 +54,7 @@ class CategoriaController extends Controller
         ->update(['Nombre' => strtoupper(trim($request['Nombre'])),
                 'Estado'=>$request['Estado']]);
 
-                $Categoria = DB::table('categoria_inventario')->paginate(10);
-
-        return view('Inventario.Categoria.ConsultarCategoria',compact('Categoria'));
+        return redirect()->route('Categoria')->with('success', 'Categoría actualizada correctamente.');
 
     }
 
@@ -53,10 +66,16 @@ class CategoriaController extends Controller
     public function Guardar(Request $request)
     {
 
-       /* $validated = $request->validate([
-            'Nombre' => 'required|min:2|max:100|unique:Categoria',
-            'Estado' => 'required',
-        ]);*/
+        // Se normaliza antes de validar para que la comprobación de duplicados compare igual que se guarda (mayúsculas).
+        $request->merge(['Nombre' => strtoupper(trim((string) $request->input('Nombre')))]);
+
+        $validated = $request->validate([
+            'Nombre' => 'required|max:100|unique:categoria_inventario,Nombre',
+        ], [
+            'Nombre.required' => 'El nombre de la categoría es obligatorio.',
+            'Nombre.max' => 'El nombre de la categoría no puede tener más de 100 caracteres.',
+            'Nombre.unique' => 'Ya existe una categoría con ese nombre.',
+        ]);
 
         $save= new Categoria();
         $save->Nombre=strtoupper(trim( $request['Nombre']));
@@ -64,8 +83,6 @@ class CategoriaController extends Controller
         $save->IdEmpleado=auth()->user()->id;
         $save->save();
 
-        $Categoria = DB::table('categoria_inventario')->paginate(10);
-
-        return view('Inventario.Categoria.ConsultarCategoria',compact('Categoria'));
+        return redirect()->route('Categoria')->with('success', 'Categoría registrada correctamente.');
     }
 }

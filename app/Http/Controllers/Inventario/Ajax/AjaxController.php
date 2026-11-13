@@ -168,9 +168,13 @@ class AjaxController extends Controller
             $Empleado = [];
             if ($request->has('q')) {
                 $Buscar = $request->q;
-                $Empleado = Empleado::select()
-                    ->where('Nombre', 'LIKE', "%$Buscar%")
-                    ->orwhere('apellidos', 'LIKE', "%$Buscar%")
+                // Solo id y nombre: nunca cédula, correo ni hash de contraseña
+                $Empleado = Empleado::select('id', 'nombre', 'apellidos')
+                    ->where(function ($q) use ($Buscar) {
+                        $q->where('nombre', 'LIKE', "%$Buscar%")
+                          ->orWhere('apellidos', 'LIKE', "%$Buscar%");
+                    })
+                    ->limit(50)
                     ->get();
             }
 
@@ -206,7 +210,7 @@ class AjaxController extends Controller
     public function ClienteBonoR(Request $request)
     {
         if ($request->has('q')) {
-            $buscar = trim($request->q);
+            $buscar = trim((string) $request->q);
 
             $clientes = ClienteBonoR::query()
                 ->select([

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class solicitudPedidos extends Model
 {
-    protected $table= 'solicitudPedidos';
+    protected $table = 'solicitudpedidos';
     protected $fillable=['Comentario,Estado,IdSolicita,IdAprueba,IdArea,Observaciones,FecAprobacion,FechaTentativa,created_at'];
     protected $guarded = ['Id'];    
 }

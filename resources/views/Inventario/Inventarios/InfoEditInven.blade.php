@@ -1,65 +1,50 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
 
 @section('content')
-
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>    
-  <!-- Modal -->
-  <div class="modal fade" id="myModal"  >
-    <div class="modal-dialog modal-lg" >
-      <div class="modal-content"  >
-        <div class="modal-header"  >
-         <h5 > <strong>Movimientos Producto</strong></h5>      
-        </div>
-        <div class="card-body">
-            <table class="table-striped table-bordered" >                       
-                <thead>
-                  <tr ALIGN="center">
-                    <th width="300"scope="col">Producto</th>
-                    <th width="100"scope="col">Cantidad</th>
-                    <th width="200"scope="col">Tipo de Movimiento</th>
-                    <th width="300"scope="col">Descripcion</th>
-                    <th width="130"scope="col">Fecha</th>
-                    <th width="300"scope="col">Empleado</th>
-                    
-                    
-                  </tr>
-                </thead>            
-                @foreach ($Inventario as $item)
-                    <tr ALIGN="center">
-                      <td width="80"> <font size=2>{{$item->Producto}}</font></td>    
-                        <td width="80"> <font size=2>{{$item->Cantidad}}</font></td> 
-                        <td width="80"> <font size=2>{{$item->Nombre}}</font></td>                          
-                        <td width="80"> <font size=2>{{$item->Descripcion}}</font></td>  
-                        <td width="80"> <font size=2>{{date("d-m-Y" , strtotime($item->FCreacion))}}</font></td>                                                                   
-                        <td width="80"> <font size=2>{{$item->Empleado}} {{$item->Apellidos}} </font></td>
-                    </tr>                   
-                   @endforeach                                                                                                      
-            </table> 
-
-            <table class="table" style="width : 50px; heigth : 10px" ALIGN="center" >                                     
-                    <td>
-                      <div class="form-group">
-                        <a class="btn btn-danger" href="javascript: history.go(-1)">{{ __('Cancelar') }} </a> 
-                      </div> 
-                    </td>              
-             </table> 
-        </div>  
-      </div>
+<div class="inv-cabecera">
+    <div>
+        <h1 class="inv-titulo">Movimientos del producto</h1>
+        <p class="inv-subtitulo">Historial de entradas y salidas registradas para este producto.</p>
     </div>
-  </div>
+    <div class="inv-acciones">
+        <a class="btn btn-outline-secondary" href="{{ route('Inventario') }}">{{ __('Volver') }}</a>
+    </div>
+</div>
 
-    <script>
-      $( document ).ready(function() {
-          $('#myModal').modal({  backdrop: 'static',
-          keyboard: false}).modal('show')            
-      });
-  </script>
+<div class="inv-tabla-wrap">
+    <div class="table-responsive">
+        <table class="table inv-tabla" data-filtro-rapido>
+            <thead>
+                <tr>
+                    <th scope="col">Producto</th>
+                    <th scope="col" class="text-right num">Cantidad</th>
+                    <th scope="col">Tipo de movimiento</th>
+                    <th scope="col">Descripción</th>
+                    <th scope="col">Fecha</th>
+                    <th scope="col">Empleado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($Inventario as $item)
+                    <tr>
+                        <td>{{ $item->Producto }}</td>
+                        <td class="text-right num">{{ $item->Cantidad }}</td>
+                        <td>{{ $item->Nombre }}</td>
+                        <td>{{ $item->Descripcion }}</td>
+                        <td>{{ date('d-m-Y', strtotime($item->FCreacion)) }}</td>
+                        <td>{{ trim($item->Empleado . ' ' . $item->Apellidos) }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="6">
+                            <div class="inv-vacio"><i class="fas fa-exchange-alt"></i><p>Este producto no tiene movimientos.</p></div>
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
 @endsection
-
-
-
-
-
-
-
-

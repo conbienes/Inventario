@@ -1,148 +1,26 @@
 @extends("theme.$theme.layout")
+@section('body-class', 'inv-page')
+@include('Inventario.partials.estilos')
 
-@section('content')
+@push('css')
+<link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2/css/select2.min.css') }}">
+<link rel="stylesheet" href="{{ asset('assets/lte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+<link rel="stylesheet" href="{{ asset('assets/lte/plugins/sweetalert2/sweetalert2.min.css') }}">
+<style>
+    .custom-dropdown-scroll {
+        max-height: 300px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+</style>
+@endpush
 
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
-        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous">
-    </script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
-
-    <link rel="stylesheet" type="text/css"
-        href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.0.0-alpha1/css/bootstrap.min.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/js/select2.min.js"></script>
-    <link rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@9.17.2/dist/sweetalert2.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/sweetalert2@9.17.2/dist/sweetalert2.min.css">
-
-    <div class="card card-primary">
-        <div class="card-header">
-            <h3 class="card-title">{{ __('REGISTRAR PRODUCTOS ALMACEN') }}</h3>
-        </div>
-
-        <div class="modal-content">
-            <div class="modal-header">
-                @if ($errors->any())
-                    <div class="alert alert-danger">
-                        <ul>
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-
-                <form>
-                    <div class="card-body">
-                        <table>
-                            <tr>
-                                <td width="500">
-                                    @csrf
-                                    <div class="form-group">
-                                        <label>Producto</label>
-                                        @foreach ($Factura as $item)
-                                            <input id="nombre" type="hidden" class="form-control" type="text">
-                                            @if ($item['Division'] == 1)
-                                                <select class="Inventario1" required name="Inventario1" id="Inventario1"
-                                                    autocomplete="off"></select> <br><br>
-                                                <label>Cantidad</label><br>
-                                                <input type="number" id="Cantidad" class="form-control" type="text"
-                                                    autocomplete="off"><br>
-                                                <label>Valor Unidad</label><br>
-                                                <input type="number" id="Valor" class="form-control" type="text"
-                                                    autocomplete="off"><br>
-                                                <button id="adicionar1" class="btn btn-success" type="button">+ Agregar
-                                                    Producto</button>
-                                            @endif
-
-                                            @if ($item['Division'] == 2)
-                                                <select class="Inventario2" required name="Inventario2" id="Inventario2"
-                                                    autocomplete="off"></select> <br><br>
-                                                <label>Cantidad</label><br>
-                                                <input type="number" id="Cantidad" class="form-control" type="text"
-                                                    autocomplete="off"><br>
-                                                <label>Valor Unidad</label><br>
-                                                <input type="number" id="Valor" class="form-control" type="text"
-                                                    autocomplete="off"><br>
-                                                <button id="adicionar2" class="btn btn-success" type="button">+ Agregar
-                                                    Producto</button>
-                                            @endif
-
-                                            @if ($item['Division'] == 3)
-                                                <select class="Inventario3" required name="Inventario3" id="Inventario3"
-                                                    autocomplete="off"></select> <br><br>
-                                                <label>Cantidad</label><br>
-                                                <input type="number" id="Cantidad" class="form-control" type="text"
-                                                    autocomplete="off"><br>
-                                                <label>Valor Unidad</label><br>
-                                                <input type="number" id="Valor" class="form-control" type="text"
-                                                    autocomplete="off"><br>
-                                                <button id="adicionar3" class="btn btn-success" type="button">+ Agregar
-                                                    Producto</button>
-                                            @else
-                                            @endif
-                                        @endforeach
-
-                                    </div>
-                                </td>
-                            </tr>
-
-                        </table>
-                </form>
-
-                <form method="POST" action="{{ route('Crear_Factura') }}">
-                    @csrf
-                    @foreach ($Factura as $item)
-                        <input id="Proveedor" name="Proveedor" type="hidden" class="form-control" type="text"
-                            value={{ $item['Proveedor'] }}>
-                        <input id="NFactura" name="NFactura" type="hidden" class="form-control" type="text"
-                            value={{ $item['NFactura'] }}>
-                        <input id="PrecioT" name="PrecioT" type="hidden" class="form-control" type="text"
-                            value={{ $item['PrecioT'] }}>
-                        <input id="OPedido" name="OPedido" type="hidden" class="form-control" type="text"
-                            value={{ $item['OPedido'] }}>
-                        <input id="FechaI" name="FechaI" type="hidden" class="form-control" type="text"
-                            value={{ $item['FechaI'] }}>
-                        <input id="Division" name="Division" type="hidden" class="form-control" type="text"
-                            value={{ $item['Division'] }}>
-                    @endforeach
-                    <strong> Elementos en la Tabla:</strong>
-
-                    <div id="adicionados"></div>
-
-                    <table id="mytable" class="table table-striped table-bordered">
-                        <tr>
-                            <th width="400">Nombre</th>
-                            <th width="50">Cantidad</th>
-                            <th width="100">Valor Unidad</th>
-                            <th width="100">Eliminar</th>
-                        </tr>
-                    </table>
-                    <table class="table">
-                        <tr ALIGN="center">
-                            <td>
-                                <div class="form-group">
-                                    <button type="submit" class="btn btn-success">{{ __('Crear') }}</button>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="form-group ">
-                                    <a class="btn btn-danger" href="{{ route('EntAlmacen') }}">{{ __('Cancelar') }} </a>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                </form>
-            </div>
-        </div>
-    </div>
-    </div>
-
-    <script type="text/javascript">
+@push('js')
+<script src="{{ asset('assets/lte/plugins/sweetalert2/sweetalert2.min.js') }}"></script>
+<script src="{{ asset('assets/lte/plugins/select2/js/select2.full.min.js') }}"></script>
+<script>
         $('.Inventario1').select2({
-            theme: "material",
+            theme: "bootstrap4",
             language: {
                 noResults: function() {
                     return "Producto no encontrado";
@@ -152,7 +30,7 @@
                 }
             },
             ajax: {
-                url: '/Ajax/Inventario1',
+                url: "{{ url('/Ajax/Inventario1') }}",
                 dataType: 'json',
                 delay: 250,
                 processResults: function(data) {
@@ -169,11 +47,11 @@
             },
             dropdownCssClass: "custom-dropdown-scroll"
         });
-    </script>
-
-    <script type="text/javascript">
+    
+</script>
+<script>
         $('.Inventario2').select2({
-            theme: "material",
+            theme: "bootstrap4",
             language: {
                 noResults: function() {
                     return "Producto no encontrado";
@@ -183,7 +61,7 @@
                 }
             },
             ajax: {
-                url: '/Ajax/Inventario2',
+                url: "{{ url('/Ajax/Inventario2') }}",
                 dataType: 'json',
                 delay: 250,
                 processResults: function(data) {
@@ -200,10 +78,11 @@
             },
             dropdownCssClass: "custom-dropdown-scroll"
         });
-    </script>
-    <script type="text/javascript">
+    
+</script>
+<script>
         $('.Inventario3').select2({
-            theme: "material",
+            theme: "bootstrap4",
             language: {
                 noResults: function() {
                     return "Producto no encontrado";
@@ -213,7 +92,7 @@
                 }
             },
             ajax: {
-                url: '/Ajax/Inventario3',
+                url: "{{ url('/Ajax/Inventario3') }}",
                 dataType: 'json',
                 delay: 250,
                 processResults: function(data) {
@@ -230,11 +109,11 @@
             },
             dropdownCssClass: "custom-dropdown-scroll"
         });
-    </script>
-
-    <script type="text/javascript">
+    
+</script>
+<script>
         $('.Proveedor').select2({
-            theme: "material",
+            theme: "bootstrap4",
             language: {
                 noResults: function() {
                     return "Proveedor no encontrado";
@@ -244,7 +123,7 @@
                 }
             },
             ajax: {
-                url: '/Ajax/Proveedor',
+                url: "{{ url('/Ajax/Proveedor') }}",
                 dataType: 'json',
                 delay: 250,
                 processResults: function(data) {
@@ -260,9 +139,9 @@
                 cache: true
             }
         });
-    </script>
-
-    <script>
+    
+</script>
+<script>
         $(document).ready(function() {
             //obtenemos el valor de los input
             var a = 1; //contador para asignar id al boton que borrara la fila
@@ -293,18 +172,16 @@
                 }
 
 
-                var fila = '<tr id="row' + a + '"><input type="hidden"  name="IdInventario[]" value="' +
-                    Inventario + '" ><td> <label> <font size=2> ' +
-                    nuevaCategoria + '</label><input type="hidden"  name="Inventario" value="' +
-                    nuevaCategoria +
-                    '" ></td><td><input type="number"  style="width:50" name="Cantidad[]" value="' +
-                    Cantidad +
-                    '" ></td><td><input type="Valor"  style="width:100" name="Valor[]" value="' + Valor +
-                    '" ></td><td><button type="button" name="remove" id="' + a +
-                    '" class="btn btn-danger btn_remove">Quitar</button></td></tr>';
+                var fila = '<tr id="row' + a + '"><td>' +
+                    '<input type="hidden" name="IdInventario[]" value="' + Inventario + '">' +
+                    '<span>' + nuevaCategoria + '</span>' +
+                    '<input type="hidden" name="Inventario" value="' + nuevaCategoria + '">' +
+                    '</td><td class="num"><input type="number" class="form-control form-control-sm" name="Cantidad[]" value="' + Cantidad + '"></td>' +
+                    '<td class="num"><input type="number" step="any" class="form-control form-control-sm" name="Valor[]" value="' + Valor + '"></td>' +
+                    '<td class="text-center"><button type="button" name="remove" id="' + a + '" class="btn btn-outline-danger btn-sm btn_remove">Quitar</button></td></tr>';
                 a = a + 1;
 
-                $('#mytable tr:first').after(fila);
+                $('#mytable tbody').append(fila);
                 $("#adicionados").text(
                     ""); //esta instruccion limpia el div adicionamos para que no se vayan acumulando
                 var nFilas = $("#mytable tr").length;
@@ -326,9 +203,9 @@
                 $("#adicionados").append(nFilas - 1);
             });
         });
-    </script>
-
-    <script>
+    
+</script>
+<script>
         $(document).ready(function() {
             //obtenemos el valor de los input
             var a = 1; //contador para asignar id al boton que borrara la fila
@@ -360,18 +237,16 @@
                 }
 
 
-                var fila = '<tr id="row' + a + '"><input type="hidden"  name="IdInventario[]" value="' +
-                    Inventario + '" ><td> <label> <font size=2> ' +
-                    nuevaCategoria + '</label><input type="hidden"  name="Inventario" value="' +
-                    nuevaCategoria +
-                    '" ></td><td><input type="number"  style="width:50" name="Cantidad[]" value="' +
-                    Cantidad +
-                    '" ></td><td><input type="Valor"  style="width:100" name="Valor[]" value="' + Valor +
-                    '" ></td><td><button type="button" name="remove" id="' + a +
-                    '" class="btn btn-danger btn_remove">Quitar</button></td></tr>';
+                var fila = '<tr id="row' + a + '"><td>' +
+                    '<input type="hidden" name="IdInventario[]" value="' + Inventario + '">' +
+                    '<span>' + nuevaCategoria + '</span>' +
+                    '<input type="hidden" name="Inventario" value="' + nuevaCategoria + '">' +
+                    '</td><td class="num"><input type="number" class="form-control form-control-sm" name="Cantidad[]" value="' + Cantidad + '"></td>' +
+                    '<td class="num"><input type="number" step="any" class="form-control form-control-sm" name="Valor[]" value="' + Valor + '"></td>' +
+                    '<td class="text-center"><button type="button" name="remove" id="' + a + '" class="btn btn-outline-danger btn-sm btn_remove">Quitar</button></td></tr>';
                 a = a + 1;
 
-                $('#mytable tr:first').after(fila);
+                $('#mytable tbody').append(fila);
                 $("#adicionados").text(
                     ""); //esta instruccion limpia el div adicionamos para que no se vayan acumulando
                 var nFilas = $("#mytable tr").length;
@@ -393,9 +268,9 @@
                 $("#adicionados").append(nFilas - 1);
             });
         });
-    </script>
-
-    <script>
+    
+</script>
+<script>
         $(document).ready(function() {
             //obtenemos el valor de los input
             var a = 1; //contador para asignar id al boton que borrara la fila
@@ -423,18 +298,16 @@
                     return false;
                 }
 
-                var fila = '<tr id="row' + a + '"><input type="hidden"  name="IdInventario[]" value="' +
-                    Inventario + '" ><td> <label> <font size=2> ' +
-                    nuevaCategoria + '</label><input type="hidden"  name="Inventario" value="' +
-                    nuevaCategoria +
-                    '" ></td><td><input type="number"  style="width:50" name="Cantidad[]" value="' +
-                    Cantidad +
-                    '" ></td><td><input type="Valor"  style="width:100" name="Valor[]" value="' + Valor +
-                    '" ></td><td><button type="button" name="remove" id="' + a +
-                    '" class="btn btn-danger btn_remove">Quitar</button></td></tr>';
+                var fila = '<tr id="row' + a + '"><td>' +
+                    '<input type="hidden" name="IdInventario[]" value="' + Inventario + '">' +
+                    '<span>' + nuevaCategoria + '</span>' +
+                    '<input type="hidden" name="Inventario" value="' + nuevaCategoria + '">' +
+                    '</td><td class="num"><input type="number" class="form-control form-control-sm" name="Cantidad[]" value="' + Cantidad + '"></td>' +
+                    '<td class="num"><input type="number" step="any" class="form-control form-control-sm" name="Valor[]" value="' + Valor + '"></td>' +
+                    '<td class="text-center"><button type="button" name="remove" id="' + a + '" class="btn btn-outline-danger btn-sm btn_remove">Quitar</button></td></tr>';
                 a = a + 1;
 
-                $('#mytable tr:first').after(fila);
+                $('#mytable tbody').append(fila);
                 $("#adicionados").text(
                     ""); //esta instruccion limpia el div adicionamos para que no se vayan acumulando
                 var nFilas = $("#mytable tr").length;
@@ -456,52 +329,172 @@
                 $("#adicionados").append(nFilas - 1);
             });
         });
-    </script>
+    
+</script>
+<script>
+    // Sin productos el servidor redirige a una ruta solo POST; se avisa antes de enviar.
+    $(function () {
+        $('#formCrearFactura').on('submit', function (e) {
+            if ($('input[name="IdInventario[]"]').length === 0) {
+                e.preventDefault();
+                Swal.fire({ icon: 'warning', title: 'Agregue al menos un producto' });
+            }
+        });
+    });
+</script>
+@endpush
 
+@section('content')
+@php
+    $f = collect($Factura)->first() ?? [];
+    $nombreProveedor = isset($f['Proveedor'])
+        ? \Illuminate\Support\Facades\DB::table('Proveedor')->where('Id', $f['Proveedor'])->value('Nombre')
+        : null;
+@endphp
+
+<div class="inv-cabecera">
+    <div>
+        <h1 class="inv-titulo">{{ __('Productos recibidos') }}</h1>
+        <p class="inv-subtitulo">Agregue cada producto que llegó en esta remisión y luego guarde el pedido.</p>
+    </div>
+</div>
+
+@include('Inventario.partials.pasos', ['pasos' => ['Datos de la remisión', 'Productos recibidos'], 'actual' => 2])
+
+@if ($errors->any())
+    <div class="alert alert-danger" role="alert">
+        <ul class="mb-0 pl-3">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+
+@if ($f)
+    <div class="inv-resumen">
+        <div class="inv-dato"><small>Proveedor</small><strong>{{ $nombreProveedor ?? '—' }}</strong></div>
+        <div class="inv-dato"><small>Remisión</small><strong>{{ $f['NFactura'] ?? '—' }}</strong></div>
+        <div class="inv-dato"><small>Orden de pedido</small><strong>{{ $f['OPedido'] ?? '—' }}</strong></div>
+        <div class="inv-dato"><small>Fecha de ingreso</small><strong>{{ $f['FechaI'] ?? '—' }}</strong></div>
+        <div class="inv-dato"><small>Valor de la remisión</small><strong>${{ number_format((float) ($f['PrecioT'] ?? 0), 0, ',', '.') }}</strong></div>
+    </div>
+@endif
+
+<div class="row">
+    <div class="col-lg-5 mb-3">
+        <div class="inv-tarjeta h-100">
+            @foreach ($Factura as $item)
+                @if (in_array((int) $item['Division'], [1, 2, 3], true))
+                    <input id="nombre" type="hidden">
+                    <div class="inv-seccion"><i class="fas fa-plus-circle"></i> Agregar producto</div>
+                    <div class="form-group">
+                        <label for="Inventario{{ $item['Division'] }}">{{ __('Producto') }} <span class="inv-campo-obligatorio">*</span></label>
+                        <select class="Inventario{{ $item['Division'] }} w-100" required name="Inventario{{ $item['Division'] }}"
+                                id="Inventario{{ $item['Division'] }}" autocomplete="off"></select>
+                        <small class="inv-ayuda">Busque por código o nombre.</small>
+                    </div>
+                    <div class="row">
+                        <div class="form-group col-6">
+                            <label for="Cantidad">{{ __('Cantidad') }} <span class="inv-campo-obligatorio">*</span></label>
+                            <input type="number" id="Cantidad" class="form-control" min="0" step="any" autocomplete="off">
+                        </div>
+                        <div class="form-group col-6">
+                            <label for="Valor">{{ __('Valor unitario') }}</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend"><span class="input-group-text">$</span></div>
+                                <input type="number" id="Valor" class="form-control" min="0" step="any" autocomplete="off">
+                            </div>
+                        </div>
+                    </div>
+                    <button id="adicionar{{ $item['Division'] }}" class="btn btn-primary btn-block" type="button">
+                        <i class="fas fa-plus mr-1"></i> Agregar a la lista
+                    </button>
+                @else
+                    <div class="inv-vacio"><i class="fas fa-exclamation-circle"></i><p>La división seleccionada no tiene inventario configurado.</p></div>
+                @endif
+            @endforeach
+        </div>
+    </div>
+
+    <div class="col-lg-7 mb-3">
+        <form method="POST" action="{{ route('Crear_Factura') }}" id="formCrearFactura" class="inv-tarjeta h-100 d-flex flex-column">
+            @csrf
+            @foreach ($Factura as $item)
+                <input type="hidden" name="Proveedor" value="{{ $item['Proveedor'] }}">
+                <input type="hidden" name="NFactura" value="{{ $item['NFactura'] }}">
+                <input type="hidden" name="PrecioT" value="{{ $item['PrecioT'] }}">
+                <input type="hidden" name="OPedido" value="{{ $item['OPedido'] }}">
+                <input type="hidden" name="FechaI" value="{{ $item['FechaI'] }}">
+                <input type="hidden" name="Division" value="{{ $item['Division'] }}">
+            @endforeach
+
+            <div class="inv-seccion d-flex justify-content-between">
+                <span><i class="fas fa-list"></i> Productos del pedido</span>
+                <span class="badge badge-info" style="font-size:.8rem"><span id="adicionados">0</span> productos</span>
+            </div>
+
+            <div class="table-responsive">
+                <table id="mytable" class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Producto</th>
+                            <th scope="col" class="num" style="width:120px">Cantidad</th>
+                            <th scope="col" class="num" style="width:150px">Valor unitario</th>
+                            <th scope="col" class="text-center" style="width:90px"><span class="sr-only">Quitar</span></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div id="listaVacia" class="inv-vacio">
+                <i class="fas fa-box-open"></i>
+                <p>Todavía no ha agregado productos.<br>Use el formulario de la izquierda.</p>
+            </div>
+
+            <div class="mt-auto pt-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center p-3 mb-3" style="background:#F8FAFC;border-radius:12px;gap:.5rem">
+                    <span class="inv-texto-2">Total de lo agregado</span>
+                    <span>
+                        <strong id="totalAgregado" style="font-size:1.15rem">$0</strong>
+                        @if (! empty($f['PrecioT']))
+                            <small class="inv-texto-2"> de ${{ number_format((float) $f['PrecioT'], 0, ',', '.') }}</small>
+                        @endif
+                    </span>
+                </div>
+                <div class="inv-acciones inv-acciones--fin">
+                    <a class="btn btn-outline-secondary" href="{{ route('EntAlmacen') }}">{{ __('Cancelar') }}</a>
+                    <button type="submit" class="btn btn-success btn-lg"><i class="fas fa-save mr-1"></i> {{ __('Guardar pedido') }}</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@push('js')
+<script>
+    // Muestra el mensaje de lista vacía y calcula el total (cantidad × valor) cada vez que cambia la tabla.
+    $(function () {
+        var cuerpo = document.querySelector('#mytable tbody');
+        var formato = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
+
+        function actualizar() {
+            var filas = cuerpo.querySelectorAll('tr');
+            var total = 0;
+            filas.forEach(function (fila) {
+                var cant = parseFloat((fila.querySelector('input[name="Cantidad[]"]') || {}).value) || 0;
+                var valor = parseFloat((fila.querySelector('input[name="Valor[]"]') || {}).value) || 0;
+                total += cant * valor;
+            });
+            document.getElementById('totalAgregado').textContent = '$' + formato.format(total);
+            document.getElementById('listaVacia').style.display = filas.length ? 'none' : '';
+            document.querySelector('#mytable').closest('.table-responsive').style.display = filas.length ? '' : 'none';
+        }
+
+        new MutationObserver(actualizar).observe(cuerpo, { childList: true });
+        $(cuerpo).on('input', 'input', actualizar);
+        actualizar();
+    });
+</script>
+@endpush
 @endsection
-
-
-<style>
-    .select2-container--material {
-        width: 100% !important;
-        font-size: 80%
-    }
-
-    .select2-container--material .select2-selection--single {
-        background-color: transparent;
-        border: none;
-        border-bottom: 1px solid #ced4da;
-        border-radius: 0;
-        box-shadow: none;
-        box-sizing: content-box;
-        height: auto;
-        margin: 0;
-        outline: none;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    }
-
-    .select2-container--material .select2-selection--single .select2-selection__placeholder {
-        color: #999;
-    }
-
-    .select2-container--material .select2-search--dropdown .select2-search__field {
-        border: none;
-        border-bottom: 1px solid #ced4da;
-        border-radius: 0;
-        outline: none;
-    }
-
-    .select2-container--material .select2-results__option--highlighted[aria-selected] {
-        background-color: #3498DB;
-        color: rgb(0, 0, 0);
-    }
-
-    .custom-dropdown-scroll {
-        max-height: 300px;
-        /* Altura máxima del dropdown */
-        overflow-y: auto;
-        /* Habilitar scroll vertical */
-        overflow-x: hidden;
-        /* Evitar scroll horizontal */
-    }
-</style>

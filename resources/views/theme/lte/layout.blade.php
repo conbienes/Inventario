@@ -21,11 +21,59 @@
   <!-- Theme style -->
   <link rel="stylesheet" href="{{ asset("assets/$theme/dist/css/adminlte.min.css") }}">
 
+  <!-- Tema visual CONBIENES (capa sobre AdminLTE, aplica a todas las pantallas) -->
+  <link rel="stylesheet" href="{{ asset('assets/conbienes/tema.css') }}">
+
   <!-- CSS Personalizado -->
   @stack('css')
+
+  {{-- Transición suave entre páginas (tema.css): si el navegador no puede completarla (clic rápido en otro
+       enlace, pestaña oculta, recarga, descarga) se omite en silencio en lugar de dejar un error en consola. --}}
+  <script>
+    (function () {
+      function silenciar(vt) {
+        if (!vt) return;
+        ['ready', 'finished', 'updateCallbackDone'].forEach(function (p) {
+          if (vt[p] && vt[p].catch) vt[p].catch(function () {});
+        });
+      }
+      // Página que se va
+      window.addEventListener('pageswap', function (e) {
+        if (!e.viewTransition) return;
+        silenciar(e.viewTransition);
+        var act = e.activation;
+        var destino = act && act.entry && act.entry.url ? act.entry.url : '';
+        if (!act || act.navigationType === 'reload' || /exportar|plantilla/i.test(destino) || document.visibilityState !== 'visible') {
+          e.viewTransition.skipTransition();
+        }
+      });
+      // Con clics muy rápidos Chrome rechaza una transición que ya no está al alcance de la página
+      // ("Page already revealed"). Solo se descarta ese error; cualquier otro se sigue mostrando.
+      window.addEventListener('unhandledrejection', function (e) {
+        var r = e.reason;
+        if (r && r.name === 'InvalidStateError' && /transition was aborted/i.test(r.message || '')) {
+          e.preventDefault();
+        }
+      });
+      // Página que llega
+      window.addEventListener('pagereveal', function (e) {
+        if (!e.viewTransition) return;
+        silenciar(e.viewTransition);
+        if (document.visibilityState !== 'visible') e.viewTransition.skipTransition();
+      });
+    })();
+  </script>
 </head>
 
-<body class="@yield('body-class', '')">
+<body class="sidebar-mini @yield('body-class', '')">
+  {{-- Recuerda si el menú lateral quedó colapsado; se aplica antes de pintar para que no "salte" --}}
+  <script>
+    try {
+      if (window.innerWidth >= 992 && localStorage.getItem('cb.menu') === 'colapsado') {
+        document.body.classList.add('sidebar-collapse');
+      }
+    } catch (e) {}
+  </script>
   <!-- Site wrapper -->
   <div class="wrapper">
 
@@ -56,6 +104,36 @@
 
   <!-- AdminLTE App -->
   <script src="{{ asset("assets/$theme/dist/js/adminlte.min.js") }}"></script>
+
+  <!-- Guardar el estado del menú lateral (colapsado / abierto) al usar el botón ☰ -->
+  <script>
+    (function () {
+      function recordado() {
+        try { return localStorage.getItem('cb.menu') === 'colapsado'; } catch (e) { return false; }
+      }
+      function aplicar() {
+        if (window.innerWidth >= 992 && recordado()) document.body.classList.add('sidebar-collapse');
+      }
+      // Solo guarda cuando la persona usa el botón (AdminLTE también abre/cierra solo al cargar)
+      $(document).on('click', '[data-widget="pushmenu"]', function () {
+        setTimeout(function () {
+          if (window.innerWidth < 992) return;
+          try {
+            localStorage.setItem('cb.menu', document.body.classList.contains('sidebar-collapse') ? 'colapsado' : 'abierto');
+          } catch (e) {}
+        }, 0);
+      });
+      // AdminLTE vuelve a abrir el menú al terminar de cargar y al cambiar el tamaño: se reaplica enseguida
+      $(window).on('load', function () {
+        aplicar();
+        $(window).on('resize', aplicar);
+      });
+    })();
+  </script>
+
+  <!-- Aviso "Generando informe… / ¡Listo!" en todas las exportaciones -->
+  <script src="{{ asset('assets/conbienes/descargas.js') }}"></script>
+  <script src="{{ asset('assets/conbienes/tabla-rapida.js') }}"></script>
 
   <!-- Scripts personalizados -->
   @stack('js')
