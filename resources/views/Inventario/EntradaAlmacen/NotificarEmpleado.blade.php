@@ -45,7 +45,14 @@
 
 @include('Inventario.partials.pasos', ['pasos' => ['Revisar lo recibido', 'Calificar proveedor', 'Notificar al personal'], 'actual' => 3])
 
-@if ($Enviado == 1)
+@if (!empty($mensajeError ?? null))
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <i class="fas fa-exclamation-triangle fa-lg mr-3"></i>
+        <div>{{ $mensajeError }}</div>
+    </div>
+@endif
+
+@if (($Enviado ?? 0) == 1)
     <div class="alert alert-success d-flex align-items-center" role="alert">
         <i class="fas fa-paper-plane fa-lg mr-3"></i>
         <div><strong>¡Notificación enviada!</strong><br>Puede enviarla a otra persona o terminar.</div>

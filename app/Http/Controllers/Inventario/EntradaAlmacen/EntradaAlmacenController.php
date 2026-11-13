@@ -9,7 +9,7 @@ use App\Models\Inventario\registro_producto;
 use App\Models\Inventario\itemfactura;
 use App\Models\Inventario\Division;
 use App\Models\Inventario\Movimientos;
-use App\Models\Admin\Empleado;
+use App\Models\Inventario\Empleado;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
@@ -494,13 +494,21 @@ class EntradaAlmacenController extends Controller
             $registroF = $request->registroF;
             $Id = $request->Correo;
 
-            $CorreoEmpleado = Empleado::select('Correo')->where('Id', '=', $Id)->get();
+            $CorreoEmpleado = Empleado::select('Correo')->where('Id', '=', $Id)->get()
+                ->filter(fn($item) => filled($item->Correo));
+
+            // Si el destinatario no existe o no tiene correo, no se finge un envío exitoso
+            if ($CorreoEmpleado->isEmpty()) {
+                $mensajeError = 'El empleado seleccionado no tiene un correo registrado. No se envió la notificación.';
+                $Enviado = 0;
+
+                return view('Inventario.EntradaAlmacen.NotificarEmpleado', compact('registroF', 'Enviado', 'mensajeError'));
+            }
 
             $pedidoinventario = DB::table('registro_producto')->join('itemfactura as Item', 'Item.IdRegProduc', '=', 'registro_producto.Id')->join('inventario as I', 'I.Id', '=', 'Item.IdInventario')->join('producto as P', 'P.Id', '=', 'I.IdProducto')->select('P.Nombre as NombreP', 'Item.CantidadA as Cantidad')->where('registro_producto.Id', '=', $registroF)->get();
 
             foreach ($CorreoEmpleado as $item) {
-                $Correo = $item->Correo;
-                Mail::to($Correo)->send(new NotiEmpleado($pedidoinventario));
+                Mail::to($item->Correo)->send(new NotiEmpleado($pedidoinventario));
             }
 
             $Enviado = 1;
