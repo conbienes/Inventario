@@ -14,6 +14,14 @@
             <div class="card-body">
                 <form method="GET" action="{{ route('BonoRegalo.informesTarjetas') }}" class="mb-4">
                     <div class="form-row align-items-end">
+                        <div class="col-md-2 mb-3">
+                            <label for="alcance" class="form-label">Ver</label>
+                            <select name="alcance" id="alcance" class="form-control">
+                                <option value="mios" @selected($alcance === 'mios')>Mis recibos</option>
+                                <option value="todos" @selected($alcance === 'todos')>Todos los recibos</option>
+                            </select>
+                        </div>
+
                         <div class="col-md-3 mb-3">
                             <label for="numero" class="form-label">Número de Recibo de Caja</label>
                             <input type="text" name="numero" value="{{ request('numero') }}" class="form-control"
@@ -37,7 +45,7 @@
                             <input type="date" name="fecha_fin" value="{{ request('fecha_fin') }}" class="form-control">
                         </div>
 
-                        <div class="col-md-3 mb-3 d-flex align-items-end">
+                        <div class="col-md-auto mb-3 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary mr-2">
                                 <i class="fas fa-search mr-1"></i> Buscar
                             </button>

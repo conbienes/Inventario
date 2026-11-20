@@ -52,8 +52,14 @@ class FacturasBRController extends Controller
     /** Buscar facturas (agrupadas por número). El cajero ve sus ventas; el administrador, todas. */
     public function informesTarjetas(FiltrosRequest $request)
     {
+        // Alcance: "mios" (solo recibos del usuario) o "todos". Por defecto: el administrador ve todos y el resto los suyos.
+        $esAdmin = Gate::allows('bono-regalo.admin');
+        $alcance = in_array($request->input('alcance'), ['mios', 'todos'], true)
+            ? $request->input('alcance')
+            : ($esAdmin ? 'todos' : 'mios');
+
         $base = CargaBC::query()
-            ->unless(Gate::allows('bono-regalo.admin'), fn($q) => $q->where('idEmpleado', Auth::id()));
+            ->when($alcance === 'mios', fn($q) => $q->where('idEmpleado', Auth::id()));
 
         $hayFiltros = collect($request->only(['fecha_inicio', 'fecha_fin', 'numero', 'cedula']))->filter()->isNotEmpty();
 
@@ -91,7 +97,7 @@ class FacturasBRController extends Controller
             ->paginate(10)
             ->appends($request->query());
 
-        return view('BonoRegalo.Facturas.BuscarFacturas', compact('facturas'));
+        return view('BonoRegalo.Facturas.BuscarFacturas', compact('facturas', 'alcance'));
     }
 
     public function exportarExcel(FiltrosRequest $request)
