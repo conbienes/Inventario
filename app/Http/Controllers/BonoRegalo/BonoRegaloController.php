@@ -23,12 +23,20 @@ class BonoRegaloController extends Controller
     {
         $registro = CargaBC::findOrFail($id);
 
-        // Solo el empleado que hizo la venta o un administrador del módulo puede imprimirla
-        abort_unless(Gate::allows('bono-regalo.ver-venta', (int) $registro->idEmpleado), 403, 'No tienes permiso para imprimir esta factura.');
+        // Cualquier usuario con acceso al módulo puede imprimir el recibo (la ruta ya lo exige).
+        // El número completo de la tarjeta solo se muestra al administrador; el resto ve los últimos 4 dígitos.
+        $esAdmin = Gate::allows('bono-regalo.admin');
 
         $lineas = CargaBC::where('factura', $registro->factura)
             ->orderBy('created_at')
-            ->get(['tarjeta', 'fecha', 'cedula', 'valor_tarjeta']);
+            ->get(['tarjeta', 'fecha', 'cedula', 'valor_tarjeta'])
+            ->map(function ($ln) use ($esAdmin) {
+                if (!$esAdmin) {
+                    $ln->tarjeta = '•••• ' . substr((string) $ln->tarjeta, -4);
+                }
+
+                return $ln;
+            });
 
         $subtotal = (float) $lineas->sum('valor_tarjeta');
 
