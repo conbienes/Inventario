@@ -232,6 +232,22 @@ class BusinessCentralService
         return json_decode((string) $resp->getBody(), true);
     }
 
+    /** Busca un cliente ya existente por su número (cédula/NIT). Devuelve null si no existe. */
+    public function findCustomerExt(string $companyId, string $numero): ?array
+    {
+        $token = $this->getAccessToken();
+        $base = $this->customApiBase() . "/companies({$companyId})/customersExt";
+        $filter = sprintf("No eq '%s'", str_replace("'", "''", $numero));
+
+        $resp = $this->requestWithRetry('GET', $base . '?$top=1&$filter=' . rawurlencode($filter), [
+            'headers' => $this->headers($token),
+            'timeout' => 15,
+        ]);
+        $data = json_decode((string) $resp->getBody(), true);
+
+        return $data['value'][0] ?? null;
+    }
+
     /** 3) Crear valor de dimensión en TU API: page 50247 "Dimension Value API" (EntitySetName = dimensionValues) */
     public function createDimensionValue(string $companyId, array $payload): array
     {

@@ -79,7 +79,21 @@ class ClienteBCSyncService
             ], fn($v) => $v !== null && !(is_string($v) && trim($v) === ''));
 
             // CREATE (sin NumeroIdentificacion) y luego PATCH con NumeroIdentificacion
-            $created = $this->bc->createCustomerExt($companyId, $payload);
+            try {
+                $created = $this->bc->createCustomerExt($companyId, $payload);
+            } catch (\Throwable $e) {
+                // BC ya tiene un cliente con esa clave (creado antes o cargado a mano): se enlaza con ese
+                // registro en lugar de fallar, para que el siguiente paso lo complete y lo deje como cargado.
+                if (!str_contains($e->getMessage(), 'EntityWithSameKeyExists') || empty($c->cedula)) {
+                    throw $e;
+                }
+
+                $created = $this->bc->findCustomerExt($companyId, (string) $c->cedula);
+                if (!$created) {
+                    return ['ok' => false, 'error' => 'BC dice que el cliente ya existe, pero no se encontró por el número ' . $c->cedula];
+                }
+                Log::info("BC: cliente {$c->id} enlazado con un registro existente (No {$c->cedula}).");
+            }
             $systemId = $created['systemId'] ?? ($created['SystemId'] ?? null);
 
             if (!$systemId) {
