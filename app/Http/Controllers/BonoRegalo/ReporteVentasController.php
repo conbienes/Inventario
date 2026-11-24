@@ -8,6 +8,7 @@ use App\Jobs\BonoRegalo\EnviarFacturaBCJob;
 use App\Jobs\BonoRegalo\SincronizarClienteBCJob;
 use App\Models\BonoRegalo\ClienteBonoR;
 use App\Models\BonoRegalo\FacturaBonoR;
+use App\Models\BonoRegalo\TarjetaBonoR;
 use App\Services\BonoRegalo\ClienteBCSyncService;
 use App\Services\BonoRegalo\FacturaBCService;
 use Illuminate\Http\Request;
@@ -82,7 +83,20 @@ class ReporteVentasController extends Controller
         // En la misma petición
         $results = [];
         foreach ($pendientes as $f) {
-            $r = $facturaBC->enviar($f);
+            try {
+                $r = $facturaBC->enviar($f);
+            } catch (\Throwable $e) {
+                // Un fallo inesperado no debe tumbar la carga completa: se reporta el motivo en la factura
+                report($e);
+                $results[] = [
+                    'factura_id' => $f->id,
+                    'numero_factura' => $f->numero_factura ?: 'BR' . $f->id,
+                    'valor_total' => (float) $f->total,
+                    'estado_bc' => 'ERROR',
+                    'errores' => [$this->motivoFallo($e)],
+                ];
+                continue;
+            }
             if (!empty($r['omitida'])) {
                 $skipped[] = $f->id; // otra petición la estaba enviando o ya la envió
                 continue;
@@ -128,6 +142,18 @@ class ReporteVentasController extends Controller
             'customers_error' => $res->where('ok_customer', false)->count(),
             'dimensions_ok' => $res->where('ok_dimension', true)->count(),
             'dimensions_error' => $res->where('ok_dimension', false)->count(),
+            // Motivo de cada cliente que falló (máximo 20 en pantalla)
+            'detalles' => $res->filter(fn($r) => !$r['ok'])->keys()->take(20)->map(fn($k) => [
+                'cliente' => trim(($clientes[$k]->nombre ?? '') . ' ' . ($clientes[$k]->apellidos ?? '')) ?: ('ID ' . $clientes[$k]->id),
+                'cedula' => $clientes[$k]->cedula ?? null,
+                'motivo' => TarjetaBonoR::enmascarar((string) ($res[$k]['error'] ?? 'Sin detalle')),
+            ])->values()->all(),
         ]);
+    }
+
+    /** Texto de error seguro para mostrar: sin números de tarjeta completos y acotado en longitud */
+    private function motivoFallo(\Throwable $e): string
+    {
+        return mb_strimwidth(TarjetaBonoR::enmascarar($e->getMessage()) ?: class_basename($e), 0, 300, '…');
     }
 }

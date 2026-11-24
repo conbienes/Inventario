@@ -193,8 +193,42 @@
                 <div class="results-summary-compact">
                     <span id="bcSummaryText" class="summary-text-compact"></span>
                 </div>
+                <div id="bcDetalles" class="results-detalles-compact d-none"></div>
             </div>
         </div>
+
+        {{-- Utilidades compartidas: leer la respuesta aunque no sea JSON y mostrar los motivos de error (texto seguro) --}}
+        <script>
+            window.cbLeerRespuesta = async function (resp) {
+                const texto = await resp.text();
+                try {
+                    return JSON.parse(texto);
+                } catch (e) {
+                    return { message: 'HTTP ' + resp.status + ': el servidor devolvió una página de error en lugar de un resultado. Revisa storage/logs/laravel.log.' };
+                }
+            };
+
+            // lineas: array de textos. Se escriben con textContent (nada se interpreta como HTML)
+            window.cbMostrarDetalles = function (contenedor, titulo, lineas) {
+                contenedor.textContent = '';
+                if (!lineas || !lineas.length) {
+                    contenedor.classList.add('d-none');
+                    return;
+                }
+                const t = document.createElement('div');
+                t.className = 'results-detalles-titulo';
+                t.textContent = titulo;
+                const ul = document.createElement('ul');
+                lineas.forEach(function (l) {
+                    const li = document.createElement('li');
+                    li.textContent = l;
+                    ul.appendChild(li);
+                });
+                contenedor.appendChild(t);
+                contenedor.appendChild(ul);
+                contenedor.classList.remove('d-none');
+            };
+        </script>
 
         {{-- Barra de acciones masivas Compacta --}}
         <form id="bulkForm" method="POST" action="{{ route('BonoRegalo.CargarBC') }}"
@@ -382,6 +416,26 @@
 
         /* Cards Compactas */
         .modern-filter-compact,
+        .results-detalles-compact {
+            padding: 0.75rem 1rem;
+            border-top: 1px solid #e5e7eb;
+            background: #fff7ed;
+            color: #7c2d12;
+            font-size: 0.9rem;
+        }
+
+        .results-detalles-compact .results-detalles-titulo {
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .results-detalles-compact ul {
+            margin: 0;
+            padding-left: 1.2rem;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
         .modern-results-compact,
         .modern-actions-compact,
         .modern-table-compact {
@@ -1026,6 +1080,7 @@
 
             const setCardVisible = v => resCard.classList.toggle('d-none', !v);
             const setLoading = v => resLoad.classList.toggle('d-none', !v);
+            const resDetalles = document.getElementById('bcDetalles');
 
             btnLoad?.addEventListener('click', async () => {
                 setCardVisible(true);
@@ -1044,7 +1099,7 @@
                         })
                     });
 
-                    const json = await resp.json();
+                    const json = await cbLeerRespuesta(resp);
                     const processed = Number(json?.processed || 0);
                     const ok = Number(json?.ok || 0);
                     const errors = Number(json?.errors || 0);
@@ -1058,9 +1113,15 @@
                         ? `${Number(json?.queued || 0)} clientes en cola para sincronizar con BC. Revisa en unos minutos.`
                         : `Clientes creados/actualizados: ${ok} · Errores: ${errors} · Lote procesado: ${processed}`;
 
+                    // Motivo de cada cliente que falló (y el mensaje general si el servidor respondió con error)
+                    const motivos = (json?.detalles || []).map(d =>
+                        `${d.cliente || 'Cliente'}${d.cedula ? ' (' + d.cedula + ')' : ''}: ${d.motivo || 'sin detalle'}`);
+                    if (!resp.ok) motivos.unshift(String(json?.message || json?.error || ('HTTP ' + resp.status)));
+                    cbMostrarDetalles(resDetalles, 'Motivos', motivos);
+
                     if (!resp.ok) {
                         console.error('HTTP', resp.status, json);
-                        alert('Ocurrió un error al cargar clientes. Revisa el resumen.');
+                        alert('No se pudo sincronizar clientes: ' + (json?.message || json?.error || ('HTTP ' + resp.status)));
                     }
                 } catch (e) {
                     console.error(e);
@@ -1068,7 +1129,8 @@
                     resOk.textContent = '0';
                     resErr.textContent = '0';
                     resMiss.textContent = '0';
-                    resSummary.textContent = 'Error de red o servidor.';
+                    resSummary.textContent = 'No se pudo completar la solicitud.';
+                    cbMostrarDetalles(resDetalles, 'Motivo', ['Error de conexión o del navegador: ' + (e?.message || e)]);
                 } finally {
                     setLoading(false);
                 }
@@ -1184,6 +1246,7 @@
             const resErr = $('#bcErr');
             const resMiss = $('#bcMiss');
             const resSummary = $('#bcSummaryText');
+            const resDetalles = $('#bcDetalles');
             const btnHide = $('#bcHide');
 
             const fmt = n => new Intl.NumberFormat('es-CO', {
@@ -1205,12 +1268,21 @@
                 const processed = Number(json?.processed ?? results.length ?? 0);
                 const okCount = results.filter(r => (r?.estado_bc === 'ENVIADO')).length;
                 const errCount = results.filter(r => (r?.estado_bc === 'ERROR')).length;
-                const missing = (json?.missing_ids || []).length;
+                const missingIds = json?.missing_ids || [];
+                const missing = missingIds.length;
 
                 resProcessed.textContent = processed;
                 resOk.textContent = okCount;
                 resErr.textContent = errCount;
                 resMiss.textContent = missing;
+
+                // Motivos: una línea por factura con error, y las facturas que no se encontraron
+                const motivos = results
+                    .filter(r => r?.estado_bc === 'ERROR')
+                    .map(r => `${r.numero_factura || ('ID ' + r.factura_id)}: ${(r.errores || []).join(' · ') || 'sin detalle'}`);
+                if (missing) motivos.push(`No encontradas en el sistema (IDs): ${missingIds.join(', ')}`);
+                if (json?.message || json?.error) motivos.unshift(String(json.message || json.error));
+                cbMostrarDetalles(resDetalles, errCount || missing || json?.message || json?.error ? 'Motivos' : '', motivos);
 
                 const totalValor = results.reduce((acc, r) => acc + (Number(r?.valor_total) || 0), 0);
                 const skipped = (json?.skipped_ids || []).length;
@@ -1256,12 +1328,12 @@
                         })
                     });
 
-                    const json = await resp.json();
+                    const json = await cbLeerRespuesta(resp);
                     renderSummary(json);
 
                     if (!resp.ok) {
                         console.error('HTTP', resp.status, json);
-                        alert('Ocurrió un error al cargar a BC. Revisa el resumen.');
+                        alert('No se pudo cargar a BC: ' + (json?.message || json?.error || ('HTTP ' + resp.status)));
                     }
                 } catch (err) {
                     console.error(err);
@@ -1270,7 +1342,8 @@
                     resOk.textContent = '0';
                     resErr.textContent = '0';
                     resMiss.textContent = '0';
-                    resSummary.textContent = 'Error de red o servidor.';
+                    resSummary.textContent = 'No se pudo completar la solicitud.';
+                    cbMostrarDetalles(resDetalles, 'Motivo', ['Error de conexión o del navegador: ' + (err?.message || err)]);
                 } finally {
                     setLoading(false);
                     enviando = false;
