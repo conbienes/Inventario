@@ -13,12 +13,16 @@ if (! function_exists('tienePermisoModulo')) {
      */
     function tienePermisoModulo(int $empleadoId, int $moduloId, ?array $niveles = null): bool
     {
-        $nivel = DB::table('empleado_modulo_permiso')
+        // Un empleado puede tener varios permisos en el mismo módulo (p. ej. Usuario + Contabilidad):
+        // se revisan todos, no solo el primero que devuelva la base de datos.
+        $permisos = DB::table('empleado_modulo_permiso')
             ->where('id_empleado', $empleadoId)
             ->where('id_modulo', $moduloId)
-            ->value('id_permiso');
+            ->pluck('id_permiso')
+            ->map(fn($p) => (int) $p)
+            ->all();
 
-        if (! $nivel) {
+        if (! $permisos) {
             return false;
         }
 
@@ -27,7 +31,7 @@ if (! function_exists('tienePermisoModulo')) {
             return true;
         }
 
-        return in_array((int)$nivel, array_map('intval', $niveles), true);
+        return (bool) array_intersect($permisos, array_map('intval', $niveles));
     }
 }
 
