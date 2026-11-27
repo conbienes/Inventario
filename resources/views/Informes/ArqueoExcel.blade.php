@@ -12,7 +12,9 @@
         <th>COMENTARIO</th>
 		<th>CANTIDADES MIN</th>
 		<th>CANTIDADES MAX</th>
-        
+        <th>IdEmpresa</th>
+        <th>EMPRESA</th>
+
     </tr>
     </thead>
     <tbody>
@@ -24,7 +26,13 @@
 		   <td>{{$item->Codigo}}</td>  
            <td>{{$item->Producto}}</td>
            <td>{{$item->Estanteria}} - {{$item->Entrepano}} - {{$item->Gaveta}} </td>
-           <td>{{$item->Cantidades}}</td>                                         
+           <td>{{$item->Cantidades}}</td>
+           <td></td>
+           <td></td>
+           <td>{{$item->CantidadMin}}</td>
+           <td>{{$item->CantidadMax}}</td>
+           <td>{{$item->IdEmpresa}}</td>
+           <td>{{$item->Division}}</td>
         </tr>
      @endforeach
     </tbody>

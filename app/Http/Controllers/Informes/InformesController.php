@@ -48,10 +48,14 @@ class InformesController extends Controller
 
     public function ExportarArqueo(Request $request)
     {
+        // Siempre la empresa activa: es la misma que valida la carga del arqueo
+        $request->merge(['IdEmpresa' => divisionInventarioActual()]);
+
         $Division = DB::table('divisiones')
             ->where('Id', '=', "$request->IdEmpresa")
             ->get();
 
+        $nombre = '';
         foreach ($Division as $item) {
             $nombre = $item->nombre;
         }

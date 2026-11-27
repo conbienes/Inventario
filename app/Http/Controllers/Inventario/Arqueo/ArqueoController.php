@@ -15,6 +15,7 @@ use App\Models\Inventario\Inventario;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 
 
@@ -74,13 +75,26 @@ class ArqueoController extends Controller
                 'Arqueos.max' => 'El archivo no puede superar 5 MB.',
             ]);
 
-            $import = new ArqueoImport();
+            // Empresa activa en el servidor: el archivo debe corresponder a ella
+            $idEmpresa = divisionInventarioActual();
+            if ($idEmpresa === null) {
+                return back()->withErrors(['Arqueos' => 'No hay una empresa seleccionada.']);
+            }
 
-            Excel::import($import , $request->file('Arqueos'));
+            $import = new ArqueoImport($idEmpresa);
 
-            $numRows=['numRows'=>$import->getRowCount()];
+            try {
+                Excel::import($import, $request->file('Arqueos'));
+            } catch (\Throwable $e) {
+                Log::error('Error al cargar arqueo', ['empresa' => $idEmpresa, 'error' => $e->getMessage()]);
+                return back()->withErrors(['Arqueos' => 'No se pudo procesar el archivo. No se guardó ningún cambio. Revisa que sea el Excel descargado del sistema.']);
+            }
 
-            return redirect()->route('In_Arqueo')->with('succes', 'Se cargaron '.$numRows['numRows'].' datos');
+            if ($import->hasErrores()) {
+                return back()->withErrors(['Arqueos' => $import->errores()]);
+            }
+
+            return redirect()->route('In_Arqueo')->with('succes', $import->resumen());
         }
         else
         {
